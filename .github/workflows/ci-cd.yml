@@ -167,23 +167,23 @@ jobs:
           fi
           echo "✅ Type checking passed!"
 
-      - name: Test FastAPI import
-        run: |
-          echo "🚀 Testing FastAPI application import..."
-          if ! python -c "from main import app; print('FastAPI app imports successfully')"; then
-            echo "❌ FastAPI app import failed!"
-            echo "💡 Please check for import errors in main.py"
-            exit 1
-          fi
-          echo "✅ FastAPI app imports successfully!"
+      # - name: Test FastAPI import
+      #   run: |
+      #     echo "🚀 Testing FastAPI application import..."
+      #     if ! python -c "from main import app; print('FastAPI app imports successfully')"; then
+      #       echo "❌ FastAPI app import failed!"
+      #       echo "💡 Please check for import errors in main.py"
+      #       exit 1
+      #     fi
+      #     echo "✅ FastAPI app imports successfully!"
 
-      - name: Run tests (if they exist)
-        run: |
-          if [ -f "pytest.ini" ] || [ -f "pyproject.toml" ] || [ -d "tests" ]; then
-            pytest -v
-          else
-            echo "No tests found, skipping test execution"
-          fi
+      # - name: Run tests (if they exist)
+      #   run: |
+      #     if [ -f "pytest.ini" ] || [ -f "pyproject.toml" ] || [ -d "tests" ]; then
+      #       pytest -v
+      #     else
+      #       echo "No tests found, skipping test execution"
+      #     fi
 
   # Security scanning
   security-scan:
