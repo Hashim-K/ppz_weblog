@@ -54,7 +54,8 @@ coverage/
 # Misc
 .prettierrc*
 .eslintrc*
-tsconfig.json
-next.config.js
+# tsconfig.json - NEEDED for TypeScript path aliases
+# next.config.js
+# next.config.ts - NEEDED for Next.js configuration
 tailwind.config.js
 postcss.config.js
