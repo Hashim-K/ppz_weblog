@@ -10,13 +10,18 @@ export default function UploadPage() {
 	const [processingStatus, setProcessingStatus] = useState<string>("");
 	const router = useRouter();
 
-	const waitForSessionProcessing = async (sessionName: string, maxAttempts = 30) => {
+	const waitForSessionProcessing = async (
+		sessionName: string,
+		maxAttempts = 30,
+	) => {
 		setProcessingStatus("Waiting for files to be processed...");
-		
+
 		for (let attempt = 0; attempt < maxAttempts; attempt++) {
 			try {
 				// Check if session exists and has been processed
-				const response = await axios.get(`http://localhost:8000/sessions/${sessionName}/info`);
+				const response = await axios.get(
+					`http://localhost:8000/sessions/${sessionName}/info`,
+				);
 				if (response.status === 200) {
 					setProcessingStatus("Files processed successfully! Redirecting...");
 					// Session is ready, navigate to dashboard
@@ -27,15 +32,19 @@ export default function UploadPage() {
 				}
 			} catch {
 				// Session not ready yet, continue waiting
-				setProcessingStatus(`Processing files... (${attempt + 1}/${maxAttempts})`);
+				setProcessingStatus(
+					`Processing files... (${attempt + 1}/${maxAttempts})`,
+				);
 			}
-			
+
 			// Wait 2 seconds before next attempt
-			await new Promise(resolve => setTimeout(resolve, 2000));
+			await new Promise((resolve) => setTimeout(resolve, 2000));
 		}
-		
+
 		// If we get here, processing took too long
-		setProcessingStatus("Processing is taking longer than expected. Check the sessions page.");
+		setProcessingStatus(
+			"Processing is taking longer than expected. Check the sessions page.",
+		);
 		setTimeout(() => {
 			router.push("/sessions");
 		}, 3000);

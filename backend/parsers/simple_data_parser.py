@@ -4,10 +4,10 @@ Simple text-based data parser for Paparazzi UAV data files
 This parser handles the text-based format visible in the sample data file.
 """
 
-import re
-from typing import List, Dict, Any, Optional
-from models.message import Message
+from typing import Any, Dict, List, Optional
+
 from models.aircraft import AircraftConfig
+from models.message import Message
 
 
 class SimpleDataParser:

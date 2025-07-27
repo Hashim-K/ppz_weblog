@@ -11,23 +11,19 @@ Architecture:
 - Configurable settings from frontend
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Query
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
 import json
-import asyncio
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from parsers.log_parser import LogParser
-from parsers.simple_data_parser import SimpleDataParser
-from models.aircraft import Aircraft
-from models.message import Message
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+
 from config.settings import Settings
 from file_watcher import FileWatcher
+from models.aircraft import Aircraft
+from models.message import Message
 from parser_version import ParserVersionManager
 
 # Initialize file watcher
@@ -456,15 +452,18 @@ async def delete_session(session_name: str):
         # Check if session exists
         output_path = Path("output") / session_name
         if not output_path.exists():
-            raise HTTPException(status_code=404, detail=f"Session '{session_name}' not found")
+            raise HTTPException(
+                status_code=404, detail=f"Session '{session_name}' not found"
+            )
 
         # Remove the entire session directory
         import shutil
+
         shutil.rmtree(output_path)
 
         return {
             "message": f"Session '{session_name}' deleted successfully",
-            "session_name": session_name
+            "session_name": session_name,
         }
 
     except HTTPException:
@@ -566,7 +565,6 @@ async def get_settings():
 @app.post("/settings")
 async def update_settings(new_settings: Dict[str, Any]):
     """Update parser settings"""
-    global settings
     settings.update(new_settings)
     return {"message": "Settings updated successfully", "settings": settings.to_dict()}
 

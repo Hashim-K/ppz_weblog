@@ -53,6 +53,7 @@ interface UISettings {
 }
 
 interface SettingsData {
+	ui: UISettings;
 	parser: ParserSettings;
 	visualization: VisualizationSettings;
 	export: ExportSettings;
@@ -63,6 +64,11 @@ interface SettingsProps {
 }
 
 const defaultSettings: SettingsData = {
+	ui: {
+		theme: "system",
+		aircraftSortBy: "id",
+		messageTypeSortBy: "count",
+	},
 	parser: {
 		max_message_size: 1024,
 		skip_unknown_messages: true,
@@ -167,7 +173,7 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 
 	const updateVisualizationSetting = (
 		key: keyof VisualizationSettings,
-		value: unknown
+		value: unknown,
 	) => {
 		setSettings((prev) => ({
 			...prev,
@@ -266,7 +272,7 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								onChange={(e) =>
 									updateParserSetting(
 										"max_message_size",
-										parseInt(e.target.value)
+										parseInt(e.target.value),
 									)
 								}
 							/>
@@ -336,7 +342,7 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								onChange={(e) =>
 									updateVisualizationSetting(
 										"max_points_per_plot",
-										parseInt(e.target.value)
+										parseInt(e.target.value),
 									)
 								}
 							/>
@@ -353,7 +359,7 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								onChange={(e) =>
 									updateVisualizationSetting(
 										"time_window_seconds",
-										parseFloat(e.target.value)
+										parseFloat(e.target.value),
 									)
 								}
 							/>
@@ -370,7 +376,7 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								onChange={(e) =>
 									updateVisualizationSetting(
 										"refresh_interval",
-										parseFloat(e.target.value)
+										parseFloat(e.target.value),
 									)
 								}
 							/>
@@ -411,14 +417,16 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								onChange={(e) =>
 									updateExportSetting(
 										"decimal_places",
-										parseInt(e.target.value)
+										parseInt(e.target.value),
 									)
 								}
 							/>
 						</div>
 
 						<div className="space-y-2">
-							<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Time Format</label>
+							<label className="text-sm font-medium text-gray-900 dark:text-gray-100">
+								Time Format
+							</label>
 							<Select
 								value={settings.export.time_format}
 								onValueChange={(value) =>

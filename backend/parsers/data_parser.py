@@ -6,9 +6,10 @@ using the message definitions from the log file.
 """
 
 import struct
-from typing import List, Dict, Any, Union
+from typing import Any, Dict, List
+
+from ..models.aircraft import AircraftConfig, MessageField
 from ..models.message import Message
-from ..models.aircraft import AircraftConfig, MessageDefinition, MessageField
 
 
 class DataParser:

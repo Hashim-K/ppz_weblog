@@ -6,8 +6,7 @@ Generates hash of parser code to detect changes and trigger reprocessing.
 import hashlib
 import json
 from pathlib import Path
-from typing import Dict, Any
-import inspect
+from typing import Any, Dict
 
 
 class ParserVersionManager:

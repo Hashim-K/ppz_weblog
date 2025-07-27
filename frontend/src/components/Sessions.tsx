@@ -58,7 +58,7 @@ export function Sessions() {
 	const router = useRouter();
 	const [sessionNames, setSessionNames] = useState<string[]>([]);
 	const [sessionInfos, setSessionInfos] = useState<Record<string, SessionInfo>>(
-		{}
+		{},
 	);
 	const [loading, setLoading] = useState(true);
 	const [deletingSession, setDeletingSession] = useState<string | null>(null);
@@ -75,13 +75,13 @@ export function Sessions() {
 			for (const sessionName of sessionNames) {
 				try {
 					const infoResponse = await axios.get(
-						`http://localhost:8000/sessions/${sessionName}/info`
+						`http://localhost:8000/sessions/${sessionName}/info`,
 					);
 					infos[sessionName] = infoResponse.data;
 				} catch (error) {
 					console.error(
 						`Failed to load info for session ${sessionName}:`,
-						error
+						error,
 					);
 				}
 			}
@@ -158,7 +158,7 @@ export function Sessions() {
 		// If all else fails, try to parse from filename
 		const filename = sessionInfo.filename || sessionInfo.session_id;
 		const match = filename.match(
-			/(\d{2})_(\d{2})_(\d{2})__(\d{2})_(\d{2})_(\d{2})/
+			/(\d{2})_(\d{2})_(\d{2})__(\d{2})_(\d{2})_(\d{2})/,
 		);
 		if (match) {
 			const [, year, month, day, hour, minute, second] = match;
@@ -169,7 +169,7 @@ export function Sessions() {
 				parseInt(day),
 				parseInt(hour),
 				parseInt(minute),
-				parseInt(second)
+				parseInt(second),
 			);
 			if (!isNaN(date.getTime())) {
 				return date.toLocaleDateString() + " " + date.toLocaleTimeString();
@@ -305,7 +305,7 @@ export function Sessions() {
 													<p className="text-lg font-bold text-blue-600 dark:text-blue-400">
 														{
 															sessionInfo.aircraft.filter(
-																(aircraft) => aircraft.total_messages > 0
+																(aircraft) => aircraft.total_messages > 0,
 															).length
 														}
 													</p>
@@ -346,7 +346,7 @@ export function Sessions() {
 														<>
 															{sessionInfo.aircraft
 																.filter(
-																	(aircraft) => aircraft.total_messages > 0
+																	(aircraft) => aircraft.total_messages > 0,
 																)
 																.slice(0, 5)
 																.map((aircraft) => (
@@ -359,18 +359,18 @@ export function Sessions() {
 																	</Badge>
 																))}
 															{sessionInfo.aircraft.filter(
-																(aircraft) => aircraft.total_messages > 0
+																(aircraft) => aircraft.total_messages > 0,
 															).length > 5 && (
 																<Badge variant="outline" className="text-xs">
 																	+
 																	{sessionInfo.aircraft.filter(
-																		(aircraft) => aircraft.total_messages > 0
+																		(aircraft) => aircraft.total_messages > 0,
 																	).length - 5}{" "}
 																	more
 																</Badge>
 															)}
 															{sessionInfo.aircraft.filter(
-																(aircraft) => aircraft.total_messages > 0
+																(aircraft) => aircraft.total_messages > 0,
 															).length === 0 && (
 																<span className="text-xs text-gray-500 dark:text-gray-400">
 																	No active aircraft

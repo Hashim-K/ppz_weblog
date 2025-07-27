@@ -35,7 +35,7 @@ interface MessageChartProps {
 
 export function MessageChart({ messages }: MessageChartProps) {
 	const [chartType, setChartType] = useState<"timeline" | "frequency">(
-		"timeline"
+		"timeline",
 	);
 
 	// Prepare data for timeline chart (message count over time)
@@ -122,7 +122,7 @@ export function MessageChart({ messages }: MessageChartProps) {
 								/>
 								<Tooltip
 									labelFormatter={(label) => `Time: ${label}s`}
-									formatter={(value, name) => [value, "Messages"]}
+									formatter={(value) => [value, "Messages"]}
 								/>
 								<Line
 									type="monotone"
@@ -144,7 +144,7 @@ export function MessageChart({ messages }: MessageChartProps) {
 									width={120}
 									fontSize={12}
 								/>
-								<Tooltip formatter={(value, name) => [value, "Count"]} />
+								<Tooltip formatter={(value) => [value, "Count"]} />
 								<Bar dataKey="count" fill="#2563eb" />
 							</BarChart>
 						</ResponsiveContainer>

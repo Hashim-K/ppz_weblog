@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Dashboard } from "@/components/Dashboard";
 
@@ -32,7 +32,7 @@ interface Settings {
 	};
 }
 
-export default function DashboardPage() {
+function DashboardContent() {
 	const searchParams = useSearchParams();
 	const router = useRouter();
 	const pathname = usePathname();
@@ -85,12 +85,12 @@ export default function DashboardPage() {
 		if (savedUISettings) {
 			try {
 				const parsedUISettings = JSON.parse(savedUISettings);
-				setSettings(prev => ({
+				setSettings((prev) => ({
 					...prev,
 					ui: {
 						...prev.ui,
 						...parsedUISettings,
-					}
+					},
 				}));
 			} catch (error) {
 				console.error("Error loading UI settings:", error);
@@ -105,6 +105,16 @@ export default function DashboardPage() {
 	}, [sessionParam]);
 
 	return (
+		<Dashboard
+			selectedSessionId={selectedSessionId}
+			setSelectedSessionId={updateSessionInUrl}
+			settings={settings}
+		/>
+	);
+}
+
+export default function DashboardPage() {
+	return (
 		<div className="min-h-screen bg-background py-8">
 			<div className="container mx-auto px-4">
 				<div className="text-center mb-8">
@@ -113,11 +123,9 @@ export default function DashboardPage() {
 						Analyze your Paparazzi UAV log data
 					</p>
 				</div>
-				<Dashboard
-					selectedSessionId={selectedSessionId}
-					setSelectedSessionId={updateSessionInUrl}
-					settings={settings}
-				/>
+				<Suspense fallback={<div>Loading dashboard...</div>}>
+					<DashboardContent />
+				</Suspense>
 			</div>
 		</div>
 	);

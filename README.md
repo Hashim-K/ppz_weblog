@@ -232,6 +232,12 @@ ppz_weblog/
 
 ## 🐳 Docker & Development
 
+### Quick Development Setup
+```bash
+# One-command setup for development environment
+./setup-dev.sh
+```
+
 ### Quick Start with Docker
 ```bash
 # Production build

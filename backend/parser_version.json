@@ -1,5 +1,5 @@
 {
-  "version_hash": "e49e138d76111800",
+  "version_hash": "196a15f003fd1c42",
   "parser_files": [
     "data_parser.py",
     "log_parser.py",
@@ -9,5 +9,5 @@
     "aircraft.py",
     "message.py"
   ],
-  "generated_at": "2025-07-27T18:31:47.206725"
+  "generated_at": "2025-07-28T00:57:26.263932"
 }

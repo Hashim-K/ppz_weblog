@@ -8,13 +8,14 @@ import shutil
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
+from typing import Any, Dict, List
 
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
+
+from parser_version import ParserVersionManager, extract_datetime_from_filename
 from parsers.log_parser import LogParser
 from parsers.simple_data_parser import SimpleDataParser
-from parser_version import ParserVersionManager, extract_datetime_from_filename
 
 
 class LogFileHandler(FileSystemEventHandler):
@@ -141,7 +142,7 @@ class LogFileHandler(FileSystemEventHandler):
                 "total_messages": len(messages),
                 "aircraft_ids": sorted(list(set(msg.aircraft_id for msg in messages))),
                 "message_types": message_type_counts,  # Now includes counts
-                "aircraft_message_counts": aircraft_message_counts,  # Message counts per aircraft
+                "aircraft_message_counts": aircraft_message_counts,  # Per aircraft
                 "duration": (
                     max([msg.timestamp for msg in messages])
                     - min([msg.timestamp for msg in messages])
@@ -157,7 +158,7 @@ class LogFileHandler(FileSystemEventHandler):
             # Calculate file sizes
             log_file_size = log_file.stat().st_size if log_file.exists() else 0
             data_file_size = data_file.stat().st_size if data_file.exists() else 0
-            total_file_size = log_file_size + data_file_size
+            log_file_size + data_file_size
 
             # 1. Create summary.json for quick overview
             summary_data = {
@@ -206,9 +207,10 @@ class LogFileHandler(FileSystemEventHandler):
             with open(session_dir / "messages.json", "w", encoding="utf-8") as f:
                 json.dump(messages_data, f, indent=2)
 
-            # 4. Create timeline.json - messages grouped by time intervals (for plotting)
+            # 4. Create timeline.json - messages grouped by time intervals
             timeline_data = self._create_timeline_data(messages)
-            with open(session_dir / "timeline.json", "w", encoding="utf-8") as f:
+            timeline_path = session_dir / "timeline.json"
+            with open(timeline_path, "w", encoding="utf-8") as f:
                 json.dump(timeline_data, f, indent=2)
 
             # 5. Create by_aircraft.json - messages grouped by aircraft
@@ -218,10 +220,11 @@ class LogFileHandler(FileSystemEventHandler):
 
             # 6. Create by_message_type.json - messages grouped by type
             by_message_type_data = self._group_messages_by_type(messages)
-            with open(session_dir / "by_message_type.json", "w", encoding="utf-8") as f:
+            message_type_path = session_dir / "by_message_type.json"
+            with open(message_type_path, "w", encoding="utf-8") as f:
                 json.dump(by_message_type_data, f, indent=2)
 
-            # Move original files to output directory (only if they're in input directory)
+            # Move original files to output directory (only if in input directory)
             try:
                 if str(log_file.parent) == str(self.input_dir):
                     shutil.move(str(log_file), str(session_dir / log_file.name))
@@ -234,9 +237,11 @@ class LogFileHandler(FileSystemEventHandler):
             print(f"  - Aircraft: {len(aircraft_list.aircraft)}")
             print(f"  - Messages: {len(messages)}")
             print(f"  - Output directory: {session_dir}")
-            print(
-                f"  - Generated files: summary.json, aircraft.json, messages.json, timeline.json, by_aircraft.json, by_message_type.json"
+            generated_files = (
+                "summary.json, aircraft.json, messages.json, timeline.json, "
+                "by_aircraft.json, by_message_type.json"
             )
+            print(f"  - Generated files: {generated_files}")
 
         except Exception as e:
             print(f"Error processing log pair {log_file.name}: {e}")

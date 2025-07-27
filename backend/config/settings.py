@@ -2,8 +2,8 @@
 Settings configuration for the Paparazzi log parser
 """
 
-from dataclasses import dataclass, asdict
-from typing import Dict, Any, List
+from dataclasses import asdict, dataclass
+from typing import Any, Dict, List
 
 
 @dataclass

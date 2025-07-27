@@ -7,7 +7,8 @@ Version: Updated for hash test
 """
 
 import xml.etree.ElementTree as ET
-from typing import Dict, List, Optional
+from typing import Dict, Optional
+
 from models.aircraft import Aircraft, AircraftConfig, MessageDefinition, MessageField
 
 
@@ -94,7 +95,7 @@ class LogParser:
         """Parse message class definitions from the XML"""
         for msg_class in root.findall(".//msg_class"):
             class_name = msg_class.get("NAME", "unknown")
-            class_id = int(msg_class.get("ID", 0))
+            int(msg_class.get("ID", 0))
 
             messages = {}
             for message_elem in msg_class.findall("message"):

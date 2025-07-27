@@ -59,41 +59,58 @@ Both services include health checks:
 - Frontend: `http://localhost:3000/api/health`
 - Backend: `http://localhost:8000/health`
 
-## 🔧 Git Hooks Setup
+## 🔧 Development Environment Setup
 
-### Frontend Hooks
+### Quick Setup (Recommended)
 ```bash
-cd frontend
-chmod +x .githooks/pre-commit
-git config core.hooksPath .githooks
+# Run the setup script to configure everything
+./setup-dev.sh
 ```
 
-### Backend Hooks
-```bash
-cd backend
-chmod +x .githooks/pre-commit
-git config core.hooksPath .githooks
+This script will:
+- Configure git hooks for both frontend and backend
+- Install Python development tools (black, isort, flake8, mypy, pytest)
+- Install frontend dependencies with Bun
+- Set up the complete development environment
 
-# Install development dependencies for hooks
+### Manual Git Hooks Setup
+```bash
+# Configure git to use the unified hooks
+git config core.hooksPath .githooks
+chmod +x .githooks/pre-commit
+
+# Install Python development tools
 pip install black isort flake8 mypy pytest
+
+# Install frontend dependencies
+cd frontend && bun install
 ```
 
-### What the Hooks Do
+### What the Unified Pre-commit Hook Does
 
-**Frontend (`frontend/.githooks/pre-commit`):**
+The single pre-commit hook (`.githooks/pre-commit`) handles both frontend and backend:
+
+**Backend Checks:**
+- Auto-formats Python code with Black (88 character line length)
+- Sorts imports with isort (Black profile)
+- Runs Flake8 linting with appropriate settings
+- Performs mypy type checking
+- Validates FastAPI app imports
+- Runs tests (if pytest configuration exists)
+- Stages all formatting changes automatically
+
+**Frontend Checks:**
 - Auto-formats code with Prettier
-- Runs ESLint checks
+- Runs ESLint checks with helpful error messages
 - Validates TypeScript types
-- Attempts production build
+- Attempts production build to catch build errors
 - Stages formatting changes automatically
 
-**Backend (`backend/.githooks/pre-commit`):**
-- Formats Python code with Black
-- Sorts imports with isort
-- Runs Flake8 linting
-- Performs mypy type checking
-- Runs tests (if available)
-- Validates FastAPI app imports
+**Smart Detection:**
+- Automatically detects which parts of the project exist
+- Skips frontend checks if no frontend directory
+- Skips backend checks if no backend directory
+- Provides helpful error messages and installation tips
 
 ## 🚀 CI/CD Pipeline
 

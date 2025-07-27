@@ -47,7 +47,7 @@ export function FileUpload({
 
 			setFiles(newFiles);
 		},
-		[files]
+		[files],
 	);
 
 	const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -91,12 +91,12 @@ export function FileUpload({
 					onUploadProgress: (progressEvent) => {
 						if (progressEvent.total) {
 							const progress = Math.round(
-								(progressEvent.loaded * 100) / progressEvent.total
+								(progressEvent.loaded * 100) / progressEvent.total,
 							);
 							setUploadProgress(progress);
 						}
 					},
-				}
+				},
 			);
 
 			// Extract session name from response
@@ -107,7 +107,7 @@ export function FileUpload({
 				err instanceof Error ? err.message : "Unknown error occurred";
 			setError(
 				errorMessage ||
-					"Failed to upload files. Make sure the backend is running on http://localhost:8000"
+					"Failed to upload files. Make sure the backend is running on http://localhost:8000",
 			);
 		} finally {
 			setLoading(false);
