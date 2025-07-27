@@ -3,7 +3,7 @@ Settings configuration for the Paparazzi log parser
 """
 
 from dataclasses import asdict, dataclass
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -14,8 +14,8 @@ class ParserSettings:
     skip_unknown_messages: bool = True
     parse_debug_messages: bool = False
     time_offset: float = 0.0
-    aircraft_filter: List[int] = None
-    message_type_filter: List[str] = None
+    aircraft_filter: Optional[List[int]] = None
+    message_type_filter: Optional[List[str]] = None
 
 
 @dataclass

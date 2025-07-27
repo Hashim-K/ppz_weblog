@@ -91,7 +91,7 @@ if check_directory "backend"; then
     # Type checking with mypy
     echo "🧐 Checking types with mypy..."
     if command -v mypy &> /dev/null; then
-        if ! mypy . --ignore-missing-imports; then
+        if ! (mypy . --ignore-missing-imports --explicit-package-bases); then
             echo "❌ mypy type checking failed. Please fix the type errors."
             echo "💡 Consider adding type hints to improve code quality."
             exit 1

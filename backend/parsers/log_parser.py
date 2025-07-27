@@ -143,11 +143,12 @@ class LogParser:
             values_str = field_elem.get("VALUES")
 
             # Parse alternative unit coefficient
+            alt_unit_coef_float = None
             if alt_unit_coef:
                 try:
-                    alt_unit_coef = float(alt_unit_coef)
+                    alt_unit_coef_float = float(alt_unit_coef)
                 except ValueError:
-                    alt_unit_coef = None
+                    alt_unit_coef_float = None
 
             # Parse enum values
             values = None
@@ -159,7 +160,7 @@ class LogParser:
                 field_type=field_type,
                 unit=unit,
                 alt_unit=alt_unit,
-                alt_unit_coef=alt_unit_coef,
+                alt_unit_coef=alt_unit_coef_float,
                 description=description,
                 values=values,
             )

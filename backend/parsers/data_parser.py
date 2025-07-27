@@ -238,7 +238,7 @@ class DataParser:
             else:
                 value_parts = values_str.split()
 
-            values = []
+            values: List[Any] = []
             for part in value_parts:
                 part = part.strip()
                 if not part:

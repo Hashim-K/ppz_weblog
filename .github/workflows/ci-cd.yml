@@ -2,9 +2,9 @@ name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 env:
   REGISTRY: ghcr.io
@@ -18,75 +18,75 @@ jobs:
     defaults:
       run:
         working-directory: ./frontend
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Setup Bun
-      uses: oven-sh/setup-bun@v2
-      with:
-        bun-version: latest
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
-    - name: Cache dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.bun/install/cache
-        key: ${{ runner.os }}-bun-${{ hashFiles('frontend/bun.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-bun-
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('frontend/bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-
 
-    - name: Install dependencies
-      run: bun install --frozen-lockfile
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
 
-    - name: Run linting
-      run: |
-        echo "🔍 Linting TypeScript/JavaScript code with ESLint..."
-        if ! bun run lint; then
-          echo "❌ ESLint checks failed!"
-          echo "💡 To fix this locally, run: bun run lint --fix"
-          echo "📝 Common issues:"
-          echo "   - Unused imports or variables"
-          echo "   - Missing semicolons or trailing commas"
-          echo "   - Incorrect spacing or formatting"
-          exit 1
-        fi
-        echo "✅ ESLint checks passed!"
+      - name: Run linting
+        run: |
+          echo "🔍 Linting TypeScript/JavaScript code with ESLint..."
+          if ! bun run lint; then
+            echo "❌ ESLint checks failed!"
+            echo "💡 To fix this locally, run: bun run lint --fix"
+            echo "📝 Common issues:"
+            echo "   - Unused imports or variables"
+            echo "   - Missing semicolons or trailing commas"
+            echo "   - Incorrect spacing or formatting"
+            exit 1
+          fi
+          echo "✅ ESLint checks passed!"
 
-    - name: Run type checking
-      run: |
-        echo "🧐 Checking TypeScript types..."
-        if ! bun tsc --noEmit; then
-          echo "❌ TypeScript type checking failed!"
-          echo "💡 Please fix the type errors shown above."
-          echo "📝 Common issues:"
-          echo "   - Missing type annotations"
-          echo "   - Incorrect prop types"
-          echo "   - Import/export mismatches"
-          exit 1
-        fi
-        echo "✅ TypeScript type checking passed!"
+      - name: Run type checking
+        run: |
+          echo "🧐 Checking TypeScript types..."
+          if ! bun tsc --noEmit; then
+            echo "❌ TypeScript type checking failed!"
+            echo "💡 Please fix the type errors shown above."
+            echo "📝 Common issues:"
+            echo "   - Missing type annotations"
+            echo "   - Incorrect prop types"
+            echo "   - Import/export mismatches"
+            exit 1
+          fi
+          echo "✅ TypeScript type checking passed!"
 
-    - name: Build application
-      run: |
-        echo "🛠️ Building Next.js application..."
-        if ! bun run build; then
-          echo "❌ Next.js build failed!"
-          echo "💡 Common issues:"
-          echo "   - Check for unused imports or variables"
-          echo "   - Verify all components are properly exported"
-          echo "   - Check for missing dependencies"
-          echo "   - Ensure all environment variables are available"
-          exit 1
-        fi
-        echo "✅ Next.js build successful!"
+      - name: Build application
+        run: |
+          echo "🛠️ Building Next.js application..."
+          if ! bun run build; then
+            echo "❌ Next.js build failed!"
+            echo "💡 Common issues:"
+            echo "   - Check for unused imports or variables"
+            echo "   - Verify all components are properly exported"
+            echo "   - Check for missing dependencies"
+            echo "   - Ensure all environment variables are available"
+            exit 1
+          fi
+          echo "✅ Next.js build successful!"
 
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: frontend-build
-        path: frontend/.next/
-        retention-days: 1
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: frontend/.next/
+          retention-days: 1
 
   # Backend CI/CD
   backend-ci:
@@ -94,200 +94,200 @@ jobs:
     defaults:
       run:
         working-directory: ./backend
-    
+
     strategy:
       matrix:
         python-version: [3.11]
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
 
-    - name: Cache pip dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('backend/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
 
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        pip install black isort flake8 mypy pytest autoflake
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install black isort flake8 mypy pytest autoflake
 
-    - name: Run code formatting check
-      run: |
-        echo "🎨 Checking Python code formatting with Black..."
-        if ! black --check . --line-length=88; then
-          echo "❌ Code formatting check failed!"
-          echo "💡 To fix this locally, run: black . --line-length=88"
-          echo "📝 Black will automatically format your Python code to match the project style."
-          exit 1
-        fi
-        echo "✅ Code formatting check passed!"
-        
-        echo "📦 Checking import sorting with isort..."
-        if ! isort --check-only --profile black .; then
-          echo "❌ Import sorting check failed!"
-          echo "💡 To fix this locally, run: isort . --profile black"
-          echo "📝 isort will automatically organize your imports."
-          exit 1
-        fi
-        echo "✅ Import sorting check passed!"
+      - name: Run code formatting check
+        run: |
+          echo "🎨 Checking Python code formatting with Black..."
+          if ! black --check . --line-length=88; then
+            echo "❌ Code formatting check failed!"
+            echo "💡 To fix this locally, run: black . --line-length=88"
+            echo "📝 Black will automatically format your Python code to match the project style."
+            exit 1
+          fi
+          echo "✅ Code formatting check passed!"
 
-    - name: Run linting
-      run: |
-        echo "🔍 Linting Python code with Flake8..."
-        if ! flake8 . --max-line-length=88 --extend-ignore=E203,W503; then
-          echo "❌ Linting failed!"
-          echo "💡 Please fix the linting errors shown above."
-          echo "📝 Common issues:"
-          echo "   - Unused imports or variables"
-          echo "   - Line too long (use Black to auto-format)"
-          echo "   - Missing whitespace around operators"
-          exit 1
-        fi
-        echo "✅ Linting passed!"
+          echo "📦 Checking import sorting with isort..."
+          if ! isort --check-only --profile black .; then
+            echo "❌ Import sorting check failed!"
+            echo "💡 To fix this locally, run: isort . --profile black"
+            echo "📝 isort will automatically organize your imports."
+            exit 1
+          fi
+          echo "✅ Import sorting check passed!"
 
-    - name: Run type checking
-      run: |
-        echo "🧐 Checking types with mypy..."
-        if ! mypy . --ignore-missing-imports; then
-          echo "❌ Type checking failed!"
-          echo "💡 Please fix the type errors shown above."
-          echo "📝 Consider adding type hints to improve code quality."
-          exit 1
-        fi
-        echo "✅ Type checking passed!"
+      - name: Run linting
+        run: |
+          echo "🔍 Linting Python code with Flake8..."
+          if ! flake8 . --max-line-length=88 --extend-ignore=E203,W503; then
+            echo "❌ Linting failed!"
+            echo "💡 Please fix the linting errors shown above."
+            echo "📝 Common issues:"
+            echo "   - Unused imports or variables"
+            echo "   - Line too long (use Black to auto-format)"
+            echo "   - Missing whitespace around operators"
+            exit 1
+          fi
+          echo "✅ Linting passed!"
 
-    - name: Test FastAPI import
-      run: |
-        echo "🚀 Testing FastAPI application import..."
-        if ! python -c "from main import app; print('FastAPI app imports successfully')"; then
-          echo "❌ FastAPI app import failed!"
-          echo "💡 Please check for import errors in main.py"
-          exit 1
-        fi
-        echo "✅ FastAPI app imports successfully!"
+      - name: Run type checking
+        run: |
+          echo "🧐 Checking types with mypy..."
+          if ! mypy . --ignore-missing-imports --explicit-package-bases; then
+            echo "❌ Type checking failed!"
+            echo "💡 Please fix the type errors shown above."
+            echo "📝 Consider adding type hints to improve code quality."
+            exit 1
+          fi
+          echo "✅ Type checking passed!"
 
-    - name: Run tests (if they exist)
-      run: |
-        if [ -f "pytest.ini" ] || [ -f "pyproject.toml" ] || [ -d "tests" ]; then
-          pytest -v
-        else
-          echo "No tests found, skipping test execution"
-        fi
+      - name: Test FastAPI import
+        run: |
+          echo "🚀 Testing FastAPI application import..."
+          if ! python -c "from main import app; print('FastAPI app imports successfully')"; then
+            echo "❌ FastAPI app import failed!"
+            echo "💡 Please check for import errors in main.py"
+            exit 1
+          fi
+          echo "✅ FastAPI app imports successfully!"
+
+      - name: Run tests (if they exist)
+        run: |
+          if [ -f "pytest.ini" ] || [ -f "pyproject.toml" ] || [ -d "tests" ]; then
+            pytest -v
+          else
+            echo "No tests found, skipping test execution"
+          fi
 
   # Security scanning
   security-scan:
     runs-on: ubuntu-latest
     needs: [frontend-ci, backend-ci]
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
-      with:
-        scan-type: 'fs'
-        scan-ref: '.'
-        format: 'sarif'
-        output: 'trivy-results.sarif'
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: "fs"
+          scan-ref: "."
+          format: "sarif"
+          output: "trivy-results.sarif"
 
-    - name: Upload Trivy scan results to GitHub Security tab
-      uses: github/codeql-action/upload-sarif@v3
-      if: always()
-      with:
-        sarif_file: 'trivy-results.sarif'
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: "trivy-results.sarif"
 
   # Build and push Docker images
   build-and-push:
     runs-on: ubuntu-latest
     needs: [frontend-ci, backend-ci, security-scan]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
+
     permissions:
       contents: read
       packages: write
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Extract metadata for frontend
-      id: frontend-meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=sha,prefix={{branch}}-
-          type=raw,value=latest,enable={{is_default_branch}}
+      - name: Extract metadata for frontend
+        id: frontend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
 
-    - name: Extract metadata for backend
-      id: backend-meta
-      uses: docker/metadata-action@v5
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=ref,event=pr
-          type=sha,prefix={{branch}}-
-          type=raw,value=latest,enable={{is_default_branch}}
+      - name: Extract metadata for backend
+        id: backend-meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-
+            type=raw,value=latest,enable={{is_default_branch}}
 
-    - name: Build and push frontend Docker image
-      uses: docker/build-push-action@v6
-      with:
-        context: ./frontend
-        file: ./frontend/.docker/Dockerfile.live
-        push: true
-        tags: ${{ steps.frontend-meta.outputs.tags }}
-        labels: ${{ steps.frontend-meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        platforms: linux/amd64,linux/arm64
+      - name: Build and push frontend Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./frontend
+          file: ./frontend/.docker/Dockerfile.live
+          push: true
+          tags: ${{ steps.frontend-meta.outputs.tags }}
+          labels: ${{ steps.frontend-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
 
-    - name: Build and push backend Docker image
-      uses: docker/build-push-action@v6
-      with:
-        context: ./backend
-        file: ./backend/.docker/Dockerfile.live
-        push: true
-        tags: ${{ steps.backend-meta.outputs.tags }}
-        labels: ${{ steps.backend-meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
-        platforms: linux/amd64,linux/arm64
+      - name: Build and push backend Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          file: ./backend/.docker/Dockerfile.live
+          push: true
+          tags: ${{ steps.backend-meta.outputs.tags }}
+          labels: ${{ steps.backend-meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64,linux/arm64
 
   # Deploy (placeholder for future deployment)
   deploy:
     runs-on: ubuntu-latest
     needs: [build-and-push]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    
+
     steps:
-    - name: Deploy to staging
-      run: |
-        echo "🚀 Deployment step placeholder"
-        echo "Frontend image: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest"
-        echo "Backend image: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:latest"
-        echo "Add your deployment logic here (e.g., kubectl, docker-compose, etc.)"
+      - name: Deploy to staging
+        run: |
+          echo "🚀 Deployment step placeholder"
+          echo "Frontend image: ${{ env.REGISTRY }}/${{ env.FRONTEND_IMAGE_NAME }}:latest"
+          echo "Backend image: ${{ env.REGISTRY }}/${{ env.BACKEND_IMAGE_NAME }}:latest"
+          echo "Add your deployment logic here (e.g., kubectl, docker-compose, etc.)"

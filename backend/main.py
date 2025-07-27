@@ -402,11 +402,11 @@ async def upload_files(
     """Upload log and data files to be processed by file watcher"""
     try:
         # Validate file extensions
-        if not log_file.filename.endswith(".log"):
+        if not log_file.filename or not log_file.filename.endswith(".log"):
             raise HTTPException(
                 status_code=400, detail="Log file must have .log extension"
             )
-        if not data_file.filename.endswith(".data"):
+        if not data_file.filename or not data_file.filename.endswith(".data"):
             raise HTTPException(
                 status_code=400, detail="Data file must have .data extension"
             )
@@ -420,6 +420,8 @@ async def upload_files(
         data_content = await data_file.read()
 
         # Use the base filename (without extension) for both files
+        if not log_file.filename:
+            raise HTTPException(status_code=400, detail="Log file name is required")
         base_name = log_file.filename.replace(".log", "")
         log_path = input_dir / f"{base_name}.log"
         data_path = input_dir / f"{base_name}.data"
