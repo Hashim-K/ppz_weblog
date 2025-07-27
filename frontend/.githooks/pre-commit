@@ -1,0 +1,66 @@
+#!/bin/bash
+
+# Git pre-commit hook script for Paparazzi UAV Log Parser Frontend
+# This script runs checks before a commit is made.
+# It will auto-format with Prettier and then run other checks.
+# If any check (after formatting) fails, the commit will be aborted.
+
+# Clean up build artifacts
+rm -rf ../.next/
+echo "🧹 Cleaning up .next directory..."
+
+# Exit immediately if a command exits with a non-zero status.
+set -e
+
+echo "🐶 Paparazzi WebLog Frontend - Pre-commit checks..."
+echo "======================================================"
+
+# 1. Format code with Prettier and stage changes
+echo "🎨 Formatting code with Prettier (auto-fixing)..."
+# Run prettier to write changes directly to the files.
+# --ignore-unknown prevents errors on files Prettier doesn't know how to handle.
+bunx prettier --write . --ignore-unknown
+echo "✨ Files formatted by Prettier (if any)."
+
+# Add any files modified by Prettier (or any other unstaged changes in tracked files)
+# to the staging area. This ensures the committed files will have the Prettier formatting.
+echo "➕ Staging automatic formatting changes..."
+git add . # Stages all changes in tracked files in the current directory.
+echo "✅ Prettier formatting applied and changes staged."
+echo "======================================================"
+
+# 2. Lint code with ESLint
+echo "🔍 Linting code with ESLint..."
+if ! bun run lint; then
+  echo "❌ ESLint checks failed. Please fix the linting errors."
+  echo "💡 Try running: bun run lint --fix"
+  exit 1
+fi
+echo "✅ ESLint checks passed."
+echo "======================================================"
+
+# 3. Check TypeScript types
+echo "🧐 Checking TypeScript types..."
+if ! bun tsc --noEmit; then
+  echo "❌ TypeScript type checking failed. Please fix the type errors."
+  exit 1
+fi
+echo "✅ TypeScript type checking passed."
+echo "======================================================"
+
+# 4. Attempt a production build
+echo "🛠️ Attempting Next.js production build..."
+if ! bun run build; then
+  echo "❌ Next.js production build failed. Please fix the build errors."
+  echo "💡 Common issues:"
+  echo "   - Check for unused imports or variables"
+  echo "   - Verify all components are properly exported"
+  echo "   - Check for missing dependencies"
+  exit 1
+fi
+echo "✅ Next.js production build successful."
+echo "======================================================"
+
+echo "🎉 All pre-commit checks passed! Proceeding with commit."
+echo "📦 Frontend ready for deployment."
+exit 0 # Explicitly exit with 0 on success

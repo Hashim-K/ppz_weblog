@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # Backend development service
+  backend-dev:
+    build:
+      context: ./backend
+      dockerfile: .docker/Dockerfile.live
+      target: base  # Use base stage for development
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount source code for hot reload
+      - ./backend:/app
+      - /app/__pycache__  # Exclude pycache
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+      - RELOAD=true
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    networks:
+      - ppz-weblog-dev
+
+  # Frontend development service
+  frontend-dev:
+    image: oven/bun:1
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules  # Exclude node_modules
+    environment:
+      - NODE_ENV=development
+      - NEXT_TELEMETRY_DISABLED=1
+    command: sh -c "bun install && bun dev"
+    depends_on:
+      - backend-dev
+    networks:
+      - ppz-weblog-dev
+
+networks:
+  ppz-weblog-dev:
+    driver: bridge

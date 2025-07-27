@@ -1,0 +1,100 @@
+#!/bin/bash
+
+# Git pre-commit hook script for Paparazzi UAV Log Parser Backend
+# This script runs checks before a commit is made.
+# It will auto-format with Black and then run other checks.
+# If any check (after formatting) fails, the commit will be aborted.
+
+# Exit immediately if a command exits with a non-zero status.
+set -e
+
+echo "🐍 Paparazzi WebLog Backend - Pre-commit checks..."
+echo "=================================================="
+
+# 1. Format Python code with Black and stage changes
+echo "🎨 Formatting Python code with Black (auto-fixing)..."
+if command -v black &> /dev/null; then
+    black . --line-length=88
+    echo "✨ Python files formatted by Black (if any)."
+else
+    echo "⚠️ Black not found, skipping formatting. Install with: pip install black"
+fi
+
+# Add any files modified by Black
+echo "➕ Staging automatic formatting changes..."
+git add .
+echo "✅ Black formatting applied and changes staged."
+echo "=================================================="
+
+# 2. Sort imports with isort
+echo "📦 Sorting imports with isort..."
+if command -v isort &> /dev/null; then
+    isort . --profile black
+    git add .
+    echo "✅ Imports sorted successfully."
+else
+    echo "⚠️ isort not found, skipping import sorting. Install with: pip install isort"
+fi
+echo "=================================================="
+
+# 3. Lint code with Flake8
+echo "🔍 Linting Python code with Flake8..."
+if command -v flake8 &> /dev/null; then
+    if ! flake8 . --max-line-length=88 --extend-ignore=E203,W503; then
+        echo "❌ Flake8 checks failed. Please fix the linting errors."
+        echo "💡 Common issues:"
+        echo "   - Line too long (use Black to auto-format)"
+        echo "   - Unused imports"
+        echo "   - Undefined variables"
+        exit 1
+    fi
+    echo "✅ Flake8 checks passed."
+else
+    echo "⚠️ Flake8 not found, skipping linting. Install with: pip install flake8"
+fi
+echo "=================================================="
+
+# 4. Type checking with mypy
+echo "🧐 Checking types with mypy..."
+if command -v mypy &> /dev/null; then
+    if ! mypy . --ignore-missing-imports; then
+        echo "❌ mypy type checking failed. Please fix the type errors."
+        echo "💡 Consider adding type hints to improve code quality"
+        exit 1
+    fi
+    echo "✅ mypy type checking passed."
+else
+    echo "⚠️ mypy not found, skipping type checking. Install with: pip install mypy"
+fi
+echo "=================================================="
+
+# 5. Run tests if they exist
+echo "🧪 Running tests..."
+if [ -f "pytest.ini" ] || [ -f "pyproject.toml" ] || [ -d "tests" ]; then
+    if command -v pytest &> /dev/null; then
+        if ! pytest -v; then
+            echo "❌ Tests failed. Please fix the failing tests."
+            exit 1
+        fi
+        echo "✅ All tests passed."
+    else
+        echo "⚠️ pytest not found, skipping tests. Install with: pip install pytest"
+    fi
+else
+    echo "⚠️ No test configuration found, skipping tests."
+fi
+echo "=================================================="
+
+# 6. Check if FastAPI server can start
+echo "🚀 Checking if FastAPI server can start..."
+if python -c "from main import app; print('✅ FastAPI app imports successfully')" 2>/dev/null; then
+    echo "✅ FastAPI server can start successfully."
+else
+    echo "❌ FastAPI server failed to start. Please check for import errors."
+    exit 1
+fi
+echo "=================================================="
+
+echo "🎉 All pre-commit checks passed! Proceeding with commit."
+echo "🔧 Backend ready for deployment."
+exit 0 # Explicitly exit with 0 on success

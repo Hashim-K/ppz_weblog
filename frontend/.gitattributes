@@ -1,0 +1,24 @@
+# Auto detect text files and ensure they use LF line endings in the repo
+* text=auto eol=lf
+
+# Explicitly declare files that will always have LF line endings
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.json text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.html text eol=lf
+*.md text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.mjs text eol=lf
+
+# Declare files that will always have CRLF line endings (if any, typically Windows-specific)
+# *.bat text eol=crlf
+
+# Declare files that should be treated as binary and not have their line endings changed
+# *.png binary
+# *.jpg binary
+# *.gif binary
