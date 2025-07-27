@@ -1,52 +1,83 @@
 # Paparazzi UAV Log Parser & Visualization System
 
-A comprehensive system for parsing, processing, and visualizing Paparazzi UAV log files with automatic file monitoring and parser version management.
+A comprehensive web-based system for parsing, processing, and visualizing Paparazzi UAV log files with automatic file monitoring, real-time processing, and advanced filtering capabilities.
+
+## 🚀 Key Features
+
+### ✨ User Interface
+- **Modern React Web App**: Built with Next.js 15, TypeScript, and Radix UI components
+- **Dark/Light Mode**: Full theming support with system detection
+- **URL-Based Navigation**: Shareable session links with persistent state
+- **Real-time Processing**: Live upload progress with automatic file processing
+- **Advanced Filtering**: Multi-select message types, aircraft filtering, and search
+- **Configurable Settings**: Persistent user preferences and sorting options
+
+### 🔄 Data Processing
+- **Automatic File Monitoring**: Watches for new log files and processes them instantly
+- **Parser Version Management**: Hash-based change detection with automatic reprocessing
+- **Smart Caching**: Efficient data storage with multiple optimized JSON outputs
+- **File Size Tracking**: Comprehensive session statistics including file sizes
+- **Error Handling**: Robust processing with detailed error reporting
+
+### 📊 Visualization & Analysis
+- **Session Management**: Complete CRUD operations with confirmation dialogs
+- **Message Analysis**: Interactive message tables with filtering and search
+- **Aircraft Insights**: Per-aircraft message counts and filtering
+- **Time-based Navigation**: Session timeline with duration information
+- **Export Capabilities**: Configurable data export with multiple formats
 
 ## Architecture Overview
 
 ### Backend (Python FastAPI)
 
-- **Main API Server** (`main.py`): FastAPI application with REST endpoints
-- **File Watcher** (`file_watcher.py`): Automatic monitoring and processing of log files
-- **Parser Version Management** (`parser_version.py`): Hash-based tracking of parser changes
-- **Modular Parsers**:
-  - `log_parser.py`: XML log file parsing for aircraft configurations
-  - `simple_data_parser.py`: Binary data file parsing for telemetry messages
-- **Data Models**:
-  - `aircraft.py`: Aircraft configuration structures
-  - `message.py`: Telemetry message structures
-- **Configuration** (`config/settings.py`): Application settings and parsing parameters
+- **Main API Server** (`main.py`): RESTful API with comprehensive endpoints
+- **File Watcher** (`file_watcher.py`): Real-time file monitoring and processing
+- **Parser System**: Modular parsers for XML logs and binary data
+- **Data Models**: Type-safe data structures for aircraft and messages
+- **Settings Management**: Configurable parsing and export parameters
 
 ### Frontend (Next.js 15 + TypeScript)
 
-- **Modern React Components**: Using shadcn/ui component library
-- **Multi-tab Interface**: Dashboard, Sessions, and Settings tabs
-- **Real-time Data Loading**: Dynamic session management and visualization
-- **TypeScript Integration**: Full type safety with backend API
+- **Component Architecture**: Modern React with shadcn/ui components
+- **State Management**: URL-based navigation with persistent settings
+- **Real-time Updates**: Live processing status and progress tracking
+- **Responsive Design**: Mobile-friendly interface with dark mode support
+- **Type Safety**: Full TypeScript integration with backend API
 
 ### File Processing Workflow
 
-#### 1. **Input Monitoring**
-
-- Watches `backend/input/` directory for new `.log` and `.data` file pairs
-- Automatic detection when both files of a pair are available
-- Processes existing files on startup
+#### 1. **Upload & Monitoring**
+- Drag-and-drop file upload with progress tracking
+- Automatic detection of log/data file pairs
+- Real-time processing status updates with polling
 
 #### 2. **Parser Version Control**
-
-- Generates SHA256 hash of all parser and model files
-- Detects parser changes and triggers reprocessing of outdated sessions
-- Maintains `parser_version.json` with current version metadata
+- SHA256 hash tracking of all parser components
+- Automatic reprocessing when parser code changes
+- Version metadata storage for audit trails
 
 #### 3. **Data Processing Pipeline**
-
 ```
-Log Pair (*.log + *.data) → Parser → Multiple JSON Outputs
+Upload → File Watcher → Parser → Multiple JSON Outputs → Web Interface
 ```
 
 #### 4. **Output Structure**
-
 For each processed session `YYMMDD__HHMMSS`:
+
+```
+output/
+├── {session_name}/              # Main output directory
+│   ├── summary.json            # Session metadata, statistics, and file sizes
+│   ├── aircraft.json           # Aircraft configurations and message counts
+│   ├── messages.json           # All messages chronologically sorted
+│   ├── timeline.json           # Time-series data optimized for visualization
+│   ├── by_aircraft.json        # Messages grouped by aircraft ID
+│   └── by_message_type.json    # Messages grouped by message type
+└── processed_logs/             # Archive of original files
+    └── {session_name}/
+        ├── {session_name}.log  # Original XML log file
+        └── {session_name}.data # Original binary data file
+```
 
 ```
 output/
@@ -63,69 +94,138 @@ output/
         └── {session_name}.data # Original data file
 ```
 
-#### 5. **Datetime Extraction**
+### Advanced Features
 
-- Automatically extracts date/time from filename format: `YY_MM_DD__HH_MM_SS`
-- Example: `25_07_09__15_38_54.log` → July 9, 2025 at 15:38:54
-- Stores parsed datetime information in session metadata
+#### 🎯 Smart Filtering & Search
+- **Multi-select Message Types**: Filter by one or multiple message types simultaneously
+- **Aircraft Filtering**: View messages from specific aircraft with active aircraft detection
+- **Real-time Search**: Instant search across message content and metadata
+- **Persistent Filters**: URL-based filter state for shareable analysis
 
-### Key Features
+#### ⚙️ Configurable Settings
+- **UI Preferences**: Aircraft and message type sorting (alphabetical or by count)
+- **Theme Management**: Light, dark, or system-based theming
+- **Export Settings**: Configurable time formats, decimal places, and metadata inclusion
+- **Parser Settings**: Customizable message filtering and parsing parameters
 
-#### Automatic Processing
+#### 🔄 Session Management
+- **CRUD Operations**: Create, view, and delete sessions with confirmation dialogs
+- **File Upload**: Drag-and-drop interface with real-time processing feedback
+- **Processing Status**: Live updates during file processing with polling
+- **Archive Management**: Automatic organization of processed files
 
-- File watcher monitors input directory continuously
-- Processes new file pairs automatically when both files are present
-- Maintains archive of all processed files
+#### 📈 Data Visualization
+- **Interactive Tables**: Sortable message tables with pagination
+- **Statistics Overview**: Session duration, message counts, and file sizes
+- **Aircraft Analytics**: Per-aircraft message distribution and filtering
+- **Timeline Analysis**: Time-based message analysis and navigation
 
-#### Parser Version Management
+### REST API Endpoints
 
-- Tracks changes to parser code using content hashing
-- Automatically reprocesses sessions when parser is updated
-- Ensures all sessions use the latest parser version
-
-#### Organized Data Output
-
-- Multiple JSON files optimized for different use cases:
-  - **summary.json**: Quick overview and metadata
-  - **timeline.json**: Optimized for time-series visualization
-  - **by_aircraft.json**: Aircraft-specific analysis
-  - **by_message_type.json**: Message type analysis
-
-#### REST API Endpoints
-
+#### Session Management
 - `GET /sessions` - List all processed sessions
-- `GET /sessions/{name}` - Get session summary
-- `GET /sessions/{name}/file/{file}` - Get specific session data file
-- `GET /parser-version` - Current parser version info
+- `GET /sessions/{name}/info` - Get detailed session metadata
+- `DELETE /sessions/{name}` - Delete session and associated files
+- `POST /upload` - Upload new log files for processing
+
+#### Data Access
+- `GET /sessions/{name}/messages` - Get session messages with filtering
+- `GET /sessions/{name}/file/{file}` - Access specific session data files
+- `GET /parser-version` - Current parser version information
 - `POST /reprocess-sessions` - Trigger reprocessing for outdated sessions
 
-## Development Setup
+#### Configuration
+- `GET /settings` - Get current parser and export settings
+- `POST /settings` - Update parser and export settings
 
-### Backend
+## 🚀 Quick Start
 
+### Prerequisites
+- Python 3.9+ with pip
+- Node.js 18+ with bun (recommended) or npm
+- Git for version control
+
+### Backend Setup
 ```bash
 cd backend
 pip install -r requirements.txt
 python main.py
 ```
+*Backend will start on `http://localhost:8000`*
 
-### Frontend
-
+### Frontend Setup
 ```bash
 cd frontend
-bun install
-bun dev
+bun install          # or npm install
+bun dev             # or npm run dev
+```
+*Frontend will start on `http://localhost:3000`*
+
+### File Upload
+1. Access the web interface at `http://localhost:3000`
+2. Navigate to the "Sessions" tab
+3. Drag and drop your `.log` and `.data` file pairs
+4. Watch real-time processing progress
+5. View processed data in the "Dashboard" tab
+
+## 📁 File Format Support
+
+### Input Files
+- **Log Files** (`.log`): XML format with aircraft configurations and message definitions
+- **Data Files** (`.data`): Binary format with timestamped telemetry messages
+- **Naming Convention**: `YY_MM_DD__HH_MM_SS.{log|data}`
+- **File Pairs**: Both `.log` and `.data` files required for processing
+
+### Output Data
+- **JSON Format**: Structured data optimized for web consumption
+- **Multiple Views**: Different JSON files for various analysis needs
+- **Metadata Rich**: Comprehensive session information and statistics
+- **Export Ready**: Configurable export formats and options
+
+## 🛠️ Development
+
+### Technology Stack
+- **Backend**: Python 3.9+, FastAPI, asyncio, watchdog
+- **Frontend**: Next.js 15, React 18, TypeScript 5, Tailwind CSS
+- **UI Components**: Radix UI, shadcn/ui, Lucide React icons
+- **Build Tools**: Bun (recommended), Vite, ESBuild
+
+### Project Structure
+```
+ppz_weblog/
+├── backend/                    # Python FastAPI server
+│   ├── main.py                # Main API server
+│   ├── file_watcher.py        # File monitoring service
+│   ├── log_parser.py          # XML log parser
+│   ├── simple_data_parser.py  # Binary data parser
+│   ├── parser_version.py      # Version management
+│   ├── models/                # Data models
+│   ├── config/                # Configuration files
+│   ├── input/                 # Upload directory
+│   └── output/                # Processed data
+└── frontend/                  # Next.js React app
+    ├── src/
+    │   ├── app/               # Next.js app router
+    │   ├── components/        # React components
+    │   └── lib/               # Utilities and helpers
+    ├── public/                # Static assets
+    └── package.json           # Dependencies
 ```
 
-## Usage
+## 🔧 Configuration
 
-1. Place Paparazzi log file pairs in `backend/input/`
-2. Files are automatically processed when both `.log` and `.data` files are detected
-3. Access web interface at `http://localhost:3000`
-4. View processed sessions and data through the web interface
+### Parser Settings
+- **Message Size Limits**: Configurable maximum message sizes
+- **Debug Messages**: Toggle debug message parsing
+- **Time Offsets**: Adjust timestamp parsing
+- **Filtering**: Aircraft and message type filters
 
-## File Format Support
+### UI Settings
+- **Sorting Preferences**: Default sort orders for dropdowns
+- **Theme Selection**: Light, dark, or system themes
+- **Display Options**: Configurable data display formats
 
-- **Log files** (`.log`): XML format containing aircraft configurations and message definitions
-- **Data files** (`.data`): Binary format containing telemetry messages with timestamps
-- **Filename convention**: `YY_MM_DD__HH_MM_SS.{log|data}`
+### Export Settings
+- **Time Formats**: Timestamp, datetime, or relative formats
+- **Precision**: Configurable decimal places
+- **Metadata**: Include/exclude raw data and metadata
