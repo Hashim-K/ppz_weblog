@@ -65,6 +65,7 @@ interface Message {
 interface Settings {
 	ui: {
 		aircraftSortBy: "id" | "name";
+		messageTypeSortBy: "count" | "alphabetical";
 	};
 }
 
@@ -507,7 +508,14 @@ export function Dashboard({
 								</div>
 								<div className="max-h-48 overflow-y-auto space-y-2 p-1">
 									{sessionInfo.message_types
-										.sort((a, b) => b.count - a.count)
+										.sort((a, b) => {
+											const sortBy = settings?.ui?.messageTypeSortBy || "count";
+											if (sortBy === "alphabetical") {
+												return a.name.localeCompare(b.name);
+											} else {
+												return b.count - a.count; // Sort by count (descending)
+											}
+										})
 										.map((messageType) => {
 											const isSelected = messageTypeFilter.includes(
 												messageType.name

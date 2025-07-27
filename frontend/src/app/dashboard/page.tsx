@@ -8,6 +8,7 @@ interface Settings {
 	ui: {
 		theme: "system" | "light" | "dark";
 		aircraftSortBy: "id" | "name";
+		messageTypeSortBy: "count" | "alphabetical";
 	};
 	parser: {
 		max_message_size: number;
@@ -50,10 +51,11 @@ export default function DashboardPage() {
 		router.replace(`${pathname}?${params.toString()}`);
 		setSelectedSessionId(sessionId);
 	};
-	const [settings] = useState<Settings>({
+	const [settings, setSettings] = useState<Settings>({
 		ui: {
 			theme: "system",
 			aircraftSortBy: "id",
+			messageTypeSortBy: "count",
 		},
 		parser: {
 			max_message_size: 1024,
@@ -76,6 +78,25 @@ export default function DashboardPage() {
 			include_metadata: true,
 		},
 	});
+
+	// Load UI settings from localStorage
+	useEffect(() => {
+		const savedUISettings = localStorage.getItem("ui-settings");
+		if (savedUISettings) {
+			try {
+				const parsedUISettings = JSON.parse(savedUISettings);
+				setSettings(prev => ({
+					...prev,
+					ui: {
+						...prev.ui,
+						...parsedUISettings,
+					}
+				}));
+			} catch (error) {
+				console.error("Error loading UI settings:", error);
+			}
+		}
+	}, []);
 
 	useEffect(() => {
 		if (sessionParam) {

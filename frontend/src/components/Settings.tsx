@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import {
 	Settings as SettingsIcon,
 	Save,
 	RotateCcw,
@@ -42,6 +49,7 @@ interface ExportSettings {
 interface UISettings {
 	theme: "system" | "light" | "dark";
 	aircraftSortBy: "id" | "name";
+	messageTypeSortBy: "count" | "alphabetical";
 }
 
 interface SettingsData {
@@ -80,6 +88,7 @@ const defaultSettings: SettingsData = {
 const defaultUISettings: UISettings = {
 	theme: "system",
 	aircraftSortBy: "id",
+	messageTypeSortBy: "count",
 };
 
 export function Settings({ onSettingsChange }: SettingsProps) {
@@ -409,18 +418,22 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 						</div>
 
 						<div className="space-y-2">
-							<label className="text-sm font-medium">Time Format</label>
-							<select
-								className="w-full p-2 border rounded-md"
+							<label className="text-sm font-medium text-gray-900 dark:text-gray-100">Time Format</label>
+							<Select
 								value={settings.export.time_format}
-								onChange={(e) =>
-									updateExportSetting("time_format", e.target.value)
+								onValueChange={(value) =>
+									updateExportSetting("time_format", value)
 								}
 							>
-								<option value="timestamp">Timestamp</option>
-								<option value="datetime">DateTime</option>
-								<option value="relative">Relative</option>
-							</select>
+								<SelectTrigger className="w-full">
+									<SelectValue />
+								</SelectTrigger>
+								<SelectContent>
+									<SelectItem value="timestamp">Timestamp</SelectItem>
+									<SelectItem value="datetime">DateTime</SelectItem>
+									<SelectItem value="relative">Relative</SelectItem>
+								</SelectContent>
+							</Select>
 						</div>
 					</div>
 
@@ -510,20 +523,47 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 							<div className="flex items-center justify-between">
 								<div>
 									<p className="font-medium">Aircraft Sorting</p>
-									<p className="text-sm text-gray-600">
+									<p className="text-sm text-gray-600 dark:text-gray-400">
 										Default sorting for aircraft dropdown
 									</p>
 								</div>
-								<select
-									className="w-32 p-2 border rounded-md"
+								<Select
 									value={uiSettings.aircraftSortBy}
-									onChange={(e) =>
-										updateUISetting("aircraftSortBy", e.target.value)
+									onValueChange={(value) =>
+										updateUISetting("aircraftSortBy", value)
 									}
 								>
-									<option value="id">By ID</option>
-									<option value="name">By Name</option>
-								</select>
+									<SelectTrigger className="w-32">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="id">By ID</SelectItem>
+										<SelectItem value="name">By Name</SelectItem>
+									</SelectContent>
+								</Select>
+							</div>
+
+							<div className="flex items-center justify-between">
+								<div>
+									<p className="font-medium">Message Type Sorting</p>
+									<p className="text-sm text-gray-600 dark:text-gray-400">
+										Default sorting for message type dropdown
+									</p>
+								</div>
+								<Select
+									value={uiSettings.messageTypeSortBy}
+									onValueChange={(value) =>
+										updateUISetting("messageTypeSortBy", value)
+									}
+								>
+									<SelectTrigger className="w-32">
+										<SelectValue />
+									</SelectTrigger>
+									<SelectContent>
+										<SelectItem value="count">By Count</SelectItem>
+										<SelectItem value="alphabetical">Alphabetical</SelectItem>
+									</SelectContent>
+								</Select>
 							</div>
 						</div>
 					</div>
