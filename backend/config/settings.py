@@ -9,6 +9,7 @@ from typing import Dict, Any, List
 @dataclass
 class ParserSettings:
     """Parser-specific settings"""
+
     max_message_size: int = 1024
     skip_unknown_messages: bool = True
     parse_debug_messages: bool = False
@@ -20,6 +21,7 @@ class ParserSettings:
 @dataclass
 class VisualizationSettings:
     """Visualization-specific settings"""
+
     max_points_per_plot: int = 10000
     time_window_seconds: float = 60.0
     auto_refresh: bool = False
@@ -29,6 +31,7 @@ class VisualizationSettings:
 @dataclass
 class ExportSettings:
     """Export-specific settings"""
+
     include_raw_data: bool = False
     decimal_places: int = 6
     time_format: str = "timestamp"  # "timestamp", "datetime", "relative"
@@ -37,20 +40,20 @@ class ExportSettings:
 
 class Settings:
     """Main settings class"""
-    
+
     def __init__(self):
         self.parser = ParserSettings()
-        self.visualization = VisualizationSettings() 
+        self.visualization = VisualizationSettings()
         self.export = ExportSettings()
-    
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert settings to dictionary"""
         return {
             "parser": asdict(self.parser),
             "visualization": asdict(self.visualization),
-            "export": asdict(self.export)
+            "export": asdict(self.export),
         }
-    
+
     def update(self, settings_dict: Dict[str, Any]):
         """Update settings from dictionary"""
         if "parser" in settings_dict:
@@ -58,13 +61,13 @@ class Settings:
             for key, value in parser_settings.items():
                 if hasattr(self.parser, key):
                     setattr(self.parser, key, value)
-        
+
         if "visualization" in settings_dict:
             viz_settings = settings_dict["visualization"]
             for key, value in viz_settings.items():
                 if hasattr(self.visualization, key):
                     setattr(self.visualization, key, value)
-        
+
         if "export" in settings_dict:
             export_settings = settings_dict["export"]
             for key, value in export_settings.items():
