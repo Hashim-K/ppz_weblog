@@ -1,0 +1,211 @@
+#!/bin/bash
+
+# Git pre-commit hook for Paparazzi UAV Log Parser
+# This script runs comprehensive checks for both frontend and backend
+# before allowing a commit to proceed.
+
+set -e
+
+echo "🚀 Paparazzi UAV Log Parser - Pre-commit checks..."
+echo "=================================================="
+
+# Get the root directory of the repository
+REPO_ROOT=$(git rev-parse --show-toplevel)
+cd "$REPO_ROOT"
+
+# Function to check if directory exists and has files
+check_directory() {
+    if [ -d "$1" ] && [ "$(ls -A "$1" 2>/dev/null)" ]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Backend checks
+if check_directory "backend"; then
+    echo ""
+    echo "🐍 Backend Checks"
+    echo "=================="
+    cd backend
+
+    # Check if Python tools are available
+    echo "🔧 Checking Python tools availability..."
+    if ! command -v python &> /dev/null; then
+        echo "❌ Python not found. Please install Python 3.11+."
+        exit 1
+    fi
+
+    # Format Python code with Black
+    echo "🎨 Formatting Python code with Black..."
+    if command -v black &> /dev/null; then
+        black . --line-length=88
+        echo "✨ Python files formatted by Black."
+    else
+        echo "⚠️ Black not found. Install with: pip install black"
+        echo "❌ Code formatting check failed."
+        exit 1
+    fi
+
+    # Remove unused imports and variables with autoflake
+    echo "🧹 Removing unused imports and variables with autoflake..."
+    if command -v autoflake &> /dev/null; then
+        autoflake --in-place --remove-all-unused-imports --remove-unused-variables --recursive .
+        echo "✅ Unused imports and variables removed."
+    else
+        echo "⚠️ autoflake not found. Install with: pip install autoflake"
+    fi
+
+    # Sort imports with isort
+    echo "📦 Sorting imports with isort..."
+    if command -v isort &> /dev/null; then
+        isort . --profile black
+        echo "✅ Imports sorted successfully."
+    else
+        echo "⚠️ isort not found. Install with: pip install isort"
+        echo "❌ Import sorting check failed."
+        exit 1
+    fi
+
+    # Add any files modified by Black/isort
+    echo "➕ Staging Python formatting changes..."
+    git add .
+    echo "✅ Python formatting changes staged."
+
+    # Lint with Flake8
+    echo "🔍 Linting Python code with Flake8..."
+    if command -v flake8 &> /dev/null; then
+        if ! flake8 . --max-line-length=88 --extend-ignore=E203,W503; then
+            echo "❌ Flake8 checks failed. Please fix the linting errors."
+            echo "💡 Common issues:"
+            echo "   - Unused imports or variables"
+            echo "   - Line too long (use Black to auto-format)"
+            echo "   - Missing whitespace around operators"
+            exit 1
+        fi
+        echo "✅ Flake8 checks passed."
+    else
+        echo "⚠️ Flake8 not found. Install with: pip install flake8"
+    fi
+
+    # Type checking with mypy
+    echo "🧐 Checking types with mypy..."
+    if command -v mypy &> /dev/null; then
+        if ! (mypy . --ignore-missing-imports --explicit-package-bases); then
+            echo "❌ mypy type checking failed. Please fix the type errors."
+            echo "💡 Consider adding type hints to improve code quality."
+            exit 1
+        fi
+        echo "✅ mypy type checking passed."
+    else
+        echo "⚠️ mypy not found. Install with: pip install mypy"
+    fi
+
+    # Test FastAPI import
+    echo "🚀 Testing FastAPI application import..."
+    if ! python -c "from main import app; print('FastAPI app imports successfully')" 2>/dev/null; then
+        echo "❌ FastAPI app import failed. Please check for import errors."
+        exit 1
+    fi
+    echo "✅ FastAPI app imports successfully."
+
+    # Run tests if they exist
+    echo "🧪 Running tests..."
+    if [ -f "pytest.ini" ] || [ -f "pyproject.toml" ] || [ -d "tests" ]; then
+        if command -v pytest &> /dev/null; then
+            if ! pytest -v; then
+                echo "❌ Tests failed. Please fix the failing tests."
+                exit 1
+            fi
+            echo "✅ All tests passed."
+        else
+            echo "⚠️ pytest not found. Install with: pip install pytest"
+        fi
+    else
+        echo "⚠️ No test configuration found, skipping tests."
+    fi
+
+    cd "$REPO_ROOT"
+    echo "✅ Backend checks completed successfully."
+else
+    echo "⚠️ Backend directory not found, skipping backend checks."
+fi
+
+# Frontend checks
+if check_directory "frontend"; then
+    echo ""
+    echo "🌐 Frontend Checks"
+    echo "==================="
+    cd frontend
+
+    # Check if Bun is available
+    echo "🔧 Checking frontend tools availability..."
+    if ! command -v bun &> /dev/null; then
+        echo "❌ Bun not found. Please install Bun: https://bun.sh/"
+        exit 1
+    fi
+
+    # Install dependencies
+    echo "📦 Installing dependencies..."
+    if [ -f "bun.lock" ]; then
+        bun install --frozen-lockfile
+    else
+        echo "⚠️ bun.lock not found, running bun install..."
+        bun install
+    fi
+    echo "✅ Dependencies installed."
+
+    # Format code with Prettier
+    echo "🎨 Formatting code with Prettier..."
+    if bunx prettier --write . --ignore-unknown; then
+        echo "✨ Files formatted by Prettier."
+        # Add any files modified by Prettier
+        echo "➕ Staging Prettier formatting changes..."
+        git add .
+        echo "✅ Prettier formatting changes staged."
+    else
+        echo "❌ Prettier formatting failed."
+        exit 1
+    fi
+
+    # Lint with ESLint
+    echo "🔍 Linting with ESLint..."
+    if ! bun run lint; then
+        echo "❌ ESLint checks failed. Please fix the linting errors."
+        echo "💡 Try running: bun run lint --fix"
+        exit 1
+    fi
+    echo "✅ ESLint checks passed."
+
+    # Type checking with TypeScript
+    echo "🧐 Checking TypeScript types..."
+    if ! bun tsc --noEmit; then
+        echo "❌ TypeScript type checking failed. Please fix the type errors."
+        exit 1
+    fi
+    echo "✅ TypeScript type checking passed."
+
+    # Build application
+    echo "🛠️ Building Next.js application..."
+    if ! bun run build; then
+        echo "❌ Next.js build failed. Please fix the build errors."
+        echo "💡 Common issues:"
+        echo "   - Check for unused imports or variables"
+        echo "   - Verify all components are properly exported"
+        echo "   - Check for missing dependencies"
+        exit 1
+    fi
+    echo "✅ Next.js build successful."
+
+    cd "$REPO_ROOT"
+    echo "✅ Frontend checks completed successfully."
+else
+    echo "⚠️ Frontend directory not found, skipping frontend checks."
+fi
+
+echo ""
+echo "🎉 All pre-commit checks passed! Proceeding with commit."
+echo "🚀 Code is ready for deployment."
+echo "=================================================="
+
+exit 0

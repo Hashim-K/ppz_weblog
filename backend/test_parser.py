@@ -3,15 +3,15 @@
 Test script for the Paparazzi log parser backend
 """
 
-import sys
 import os
+import sys
 
 # Add the backend directory to the Python path
 backend_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, backend_dir)
 
-from parsers.log_parser import LogParser
-from parsers.simple_data_parser import SimpleDataParser
+from parsers.log_parser import LogParser  # noqa: E402
+from parsers.simple_data_parser import SimpleDataParser  # noqa: E402
 
 
 def test_parser():
@@ -75,7 +75,7 @@ def test_parser():
             print(f"   Sample message types: {list(message_types)[:10]}")
 
             # Show first few messages
-            print(f"\n3. Sample messages:")
+            print("\n3. Sample messages:")
             for i, msg in enumerate(messages[:3]):
                 print(f"   Message {i+1}:")
                 print(f"     Timestamp: {msg.timestamp}")

@@ -229,3 +229,47 @@ ppz_weblog/
 - **Time Formats**: Timestamp, datetime, or relative formats
 - **Precision**: Configurable decimal places
 - **Metadata**: Include/exclude raw data and metadata
+
+## 🐳 Docker & Development
+
+### Quick Development Setup
+```bash
+# One-command setup for development environment
+./setup-dev.sh
+```
+
+### Quick Start with Docker
+```bash
+# Production build
+docker-compose up --build
+
+# Development mode with hot reload
+docker-compose -f docker-compose.dev.yml up --build
+```
+
+### Access Points
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:8000
+- **Health Checks**: `/api/health` (frontend), `/health` (backend)
+
+For comprehensive Docker, CI/CD, and deployment instructions, see [DEVELOPMENT.md](./DEVELOPMENT.md).
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Set up pre-commit hooks (see [DEVELOPMENT.md](./DEVELOPMENT.md))
+4. Commit your changes (`git commit -m 'Add amazing feature'`)
+5. Push to the branch (`git push origin feature/amazing-feature`)
+6. Open a Pull Request
+
+### Development Setup
+See [DEVELOPMENT.md](./DEVELOPMENT.md) for detailed setup instructions including:
+- Docker development workflows
+- Git hooks configuration
+- CI/CD pipeline details
+- Deployment strategies
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.

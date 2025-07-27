@@ -11,23 +11,19 @@ Architecture:
 - Configurable settings from frontend
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File, Query
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
 import json
-import asyncio
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Any, Dict, List, Optional
 
-from parsers.log_parser import LogParser
-from parsers.simple_data_parser import SimpleDataParser
-from models.aircraft import Aircraft
-from models.message import Message
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+
 from config.settings import Settings
 from file_watcher import FileWatcher
+from models.aircraft import Aircraft
+from models.message import Message
 from parser_version import ParserVersionManager
 
 # Initialize file watcher
@@ -406,11 +402,11 @@ async def upload_files(
     """Upload log and data files to be processed by file watcher"""
     try:
         # Validate file extensions
-        if not log_file.filename.endswith(".log"):
+        if not log_file.filename or not log_file.filename.endswith(".log"):
             raise HTTPException(
                 status_code=400, detail="Log file must have .log extension"
             )
-        if not data_file.filename.endswith(".data"):
+        if not data_file.filename or not data_file.filename.endswith(".data"):
             raise HTTPException(
                 status_code=400, detail="Data file must have .data extension"
             )
@@ -424,6 +420,8 @@ async def upload_files(
         data_content = await data_file.read()
 
         # Use the base filename (without extension) for both files
+        if not log_file.filename:
+            raise HTTPException(status_code=400, detail="Log file name is required")
         base_name = log_file.filename.replace(".log", "")
         log_path = input_dir / f"{base_name}.log"
         data_path = input_dir / f"{base_name}.data"
@@ -456,15 +454,18 @@ async def delete_session(session_name: str):
         # Check if session exists
         output_path = Path("output") / session_name
         if not output_path.exists():
-            raise HTTPException(status_code=404, detail=f"Session '{session_name}' not found")
+            raise HTTPException(
+                status_code=404, detail=f"Session '{session_name}' not found"
+            )
 
         # Remove the entire session directory
         import shutil
+
         shutil.rmtree(output_path)
 
         return {
             "message": f"Session '{session_name}' deleted successfully",
-            "session_name": session_name
+            "session_name": session_name,
         }
 
     except HTTPException:
@@ -566,7 +567,6 @@ async def get_settings():
 @app.post("/settings")
 async def update_settings(new_settings: Dict[str, Any]):
     """Update parser settings"""
-    global settings
     settings.update(new_settings)
     return {"message": "Settings updated successfully", "settings": settings.to_dict()}
 

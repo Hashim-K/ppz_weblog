@@ -7,7 +7,8 @@ Version: Updated for hash test
 """
 
 import xml.etree.ElementTree as ET
-from typing import Dict, List, Optional
+from typing import Dict, Optional
+
 from models.aircraft import Aircraft, AircraftConfig, MessageDefinition, MessageField
 
 
@@ -94,7 +95,7 @@ class LogParser:
         """Parse message class definitions from the XML"""
         for msg_class in root.findall(".//msg_class"):
             class_name = msg_class.get("NAME", "unknown")
-            class_id = int(msg_class.get("ID", 0))
+            int(msg_class.get("ID", 0))
 
             messages = {}
             for message_elem in msg_class.findall("message"):
@@ -142,11 +143,12 @@ class LogParser:
             values_str = field_elem.get("VALUES")
 
             # Parse alternative unit coefficient
+            alt_unit_coef_float = None
             if alt_unit_coef:
                 try:
-                    alt_unit_coef = float(alt_unit_coef)
+                    alt_unit_coef_float = float(alt_unit_coef)
                 except ValueError:
-                    alt_unit_coef = None
+                    alt_unit_coef_float = None
 
             # Parse enum values
             values = None
@@ -158,7 +160,7 @@ class LogParser:
                 field_type=field_type,
                 unit=unit,
                 alt_unit=alt_unit,
-                alt_unit_coef=alt_unit_coef,
+                alt_unit_coef=alt_unit_coef_float,
                 description=description,
                 values=values,
             )

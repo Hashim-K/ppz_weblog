@@ -1,0 +1,72 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Documentation
+README.md
+*.md
+
+# Logs
+logs/
+*.log
+
+# Test files
+tests/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Development files
+.env
+.env.local
+.env.development
+.env.test
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+
+# Jupyter notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.bak
+
+# Configuration files that shouldn't be in container
+.flake8
+.mypy.ini
+pytest.ini
+setup.cfg
+pyproject.toml

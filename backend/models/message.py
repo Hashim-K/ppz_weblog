@@ -2,9 +2,9 @@
 Message model representing parsed telemetry messages from Paparazzi data files.
 """
 
-from dataclasses import dataclass
-from typing import Dict, Any, Optional, List
 import json
+from dataclasses import dataclass
+from typing import Any, Dict, List
 
 
 @dataclass

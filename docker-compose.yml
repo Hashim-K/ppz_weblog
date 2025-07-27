@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # Backend API service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: .docker/Dockerfile.live
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount input/output directories for file processing
+      - ./backend/input:/app/input
+      - ./backend/output:/app/output
+      - ./backend/processed_logs:/app/processed_logs
+    environment:
+      - PYTHONPATH=/app
+      - PYTHONDONTWRITEBYTECODE=1
+      - PYTHONUNBUFFERED=1
+    healthcheck:
+      test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - ppz-weblog
+
+  # Frontend web application
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: .docker/Dockerfile.live
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - NEXT_TELEMETRY_DISABLED=1
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - ppz-weblog
+
+networks:
+  ppz-weblog:
+    driver: bridge
+
+volumes:
+  # Named volumes for persistent data
+  input_data:
+  output_data:
+  processed_logs:

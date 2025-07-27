@@ -3,7 +3,7 @@ Aircraft model representing an aircraft configuration from Paparazzi log files.
 """
 
 from dataclasses import dataclass
-from typing import Dict, List, Any, Optional
+from typing import Any, Dict, List, Optional
 
 
 @dataclass

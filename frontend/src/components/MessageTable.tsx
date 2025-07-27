@@ -12,7 +12,13 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ChevronDown, ChevronRight, ChevronLeft, ChevronsLeft, ChevronsRight } from "lucide-react";
+import {
+	ChevronDown,
+	ChevronRight,
+	ChevronLeft,
+	ChevronsLeft,
+	ChevronsRight,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 
 interface Message {
@@ -38,7 +44,7 @@ export function MessageTable({ messages }: MessageTableProps) {
 	const totalPages = Math.ceil(messages.length / MESSAGES_PER_PAGE);
 	const startIndex = currentPage * MESSAGES_PER_PAGE;
 	const endIndex = Math.min(startIndex + MESSAGES_PER_PAGE, messages.length);
-	
+
 	// Get current page messages
 	const currentMessages = useMemo(() => {
 		return messages.slice(startIndex, endIndex);
@@ -78,7 +84,7 @@ export function MessageTable({ messages }: MessageTableProps) {
 	};
 
 	const handlePageInputKeyPress = (e: React.KeyboardEvent) => {
-		if (e.key === 'Enter') {
+		if (e.key === "Enter") {
 			handlePageInputSubmit();
 		}
 	};
@@ -97,7 +103,7 @@ export function MessageTable({ messages }: MessageTableProps) {
 
 	const getFieldSummary = (fields: Record<string, unknown>): string => {
 		const fieldNames = Object.keys(fields).filter(
-			(key) => !key.startsWith("_")
+			(key) => !key.startsWith("_"),
 		);
 		return (
 			fieldNames.slice(0, 3).join(", ") + (fieldNames.length > 3 ? "..." : "")
@@ -112,7 +118,7 @@ export function MessageTable({ messages }: MessageTableProps) {
 					<p className="text-sm text-gray-600">
 						Showing {startIndex + 1}-{endIndex} of {messages.length} messages
 					</p>
-					
+
 					{/* Pagination Controls */}
 					<div className="flex items-center gap-2">
 						<Button
@@ -215,7 +221,10 @@ export function MessageTable({ messages }: MessageTableProps) {
 
 										{expandedRows.has(index) && (
 											<TableRow>
-												<TableCell colSpan={5} className="bg-gray-50 dark:bg-gray-800 p-4">
+												<TableCell
+													colSpan={5}
+													className="bg-gray-50 dark:bg-gray-800 p-4"
+												>
 													<div className="space-y-2">
 														<h4 className="font-medium text-sm">
 															Message Fields:

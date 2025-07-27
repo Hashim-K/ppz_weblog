@@ -104,7 +104,7 @@ export function Dashboard({
 				externalSetSelectedSessionId(sessionId);
 			}
 		},
-		[externalSetSelectedSessionId]
+		[externalSetSelectedSessionId],
 	);
 
 	const loadSessions = async () => {
@@ -128,7 +128,7 @@ export function Dashboard({
 
 			// Remove from sessions list
 			setSessions((prev) =>
-				prev.filter((session) => session !== selectedSession)
+				prev.filter((session) => session !== selectedSession),
 			);
 
 			// Clear current session data
@@ -138,7 +138,7 @@ export function Dashboard({
 
 			// Select first available session if any
 			const remainingSessions = sessions.filter(
-				(session) => session !== selectedSession
+				(session) => session !== selectedSession,
 			);
 			if (remainingSessions.length > 0) {
 				handleSessionSelection(remainingSessions[0]);
@@ -154,7 +154,7 @@ export function Dashboard({
 	const loadSessionInfo = async (sessionId: string) => {
 		try {
 			const response = await axios.get(
-				`http://localhost:8000/sessions/${sessionId}/info`
+				`http://localhost:8000/sessions/${sessionId}/info`,
 			);
 			console.log("Session info response:", response.data);
 			console.log("Message types:", response.data.message_types);
@@ -185,7 +185,7 @@ export function Dashboard({
 			fastParams.append("limit", "1000");
 
 			const fastResponse = await axios.get(
-				`http://localhost:8000/sessions/${selectedSession}/messages?${fastParams.toString()}`
+				`http://localhost:8000/sessions/${selectedSession}/messages?${fastParams.toString()}`,
 			);
 			const fastMessages = fastResponse.data;
 			setMessages(fastMessages);
@@ -196,7 +196,7 @@ export function Dashboard({
 				setIsLoadingMore(true);
 				try {
 					const fullResponse = await axios.get(
-						`http://localhost:8000/sessions/${selectedSession}/messages?${params.toString()}`
+						`http://localhost:8000/sessions/${selectedSession}/messages?${params.toString()}`,
 					);
 					setMessages(fullResponse.data);
 				} catch (error) {
@@ -427,7 +427,7 @@ export function Dashboard({
 										<div className="flex flex-wrap gap-1">
 											{activeAircraftIds.map((id) => {
 												const aircraft = sessionInfo.aircraft.find(
-													(a) => a.id === id
+													(a) => a.id === id,
 												);
 												return aircraft ? (
 													<Button
@@ -438,7 +438,7 @@ export function Dashboard({
 														size="sm"
 														onClick={() =>
 															setSelectedAircraft(
-																selectedAircraft === id ? null : id
+																selectedAircraft === id ? null : id,
 															)
 														}
 														className="h-8 px-2 text-xs"
@@ -456,7 +456,7 @@ export function Dashboard({
 									value={selectedAircraft?.toString() || "all"}
 									onValueChange={(value) =>
 										setSelectedAircraft(
-											value === "all" ? null : parseInt(value)
+											value === "all" ? null : parseInt(value),
 										)
 									}
 								>
@@ -518,7 +518,7 @@ export function Dashboard({
 										})
 										.map((messageType) => {
 											const isSelected = messageTypeFilter.includes(
-												messageType.name
+												messageType.name,
 											);
 											return (
 												<Button
@@ -528,7 +528,9 @@ export function Dashboard({
 													onClick={() => {
 														if (isSelected) {
 															setMessageTypeFilter((prev) =>
-																prev.filter((type) => type !== messageType.name)
+																prev.filter(
+																	(type) => type !== messageType.name,
+																),
 															);
 														} else {
 															setMessageTypeFilter((prev) => [

@@ -8,13 +8,14 @@ import shutil
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any
-from watchdog.observers import Observer
-from watchdog.events import FileSystemEventHandler
+from typing import Any, Dict, List
 
+from watchdog.events import FileSystemEventHandler
+from watchdog.observers import Observer
+
+from parser_version import ParserVersionManager, extract_datetime_from_filename
 from parsers.log_parser import LogParser
 from parsers.simple_data_parser import SimpleDataParser
-from parser_version import ParserVersionManager, extract_datetime_from_filename
 
 
 class LogFileHandler(FileSystemEventHandler):
@@ -22,7 +23,7 @@ class LogFileHandler(FileSystemEventHandler):
         self.input_dir = Path(input_dir)
         self.output_dir = Path(output_dir)
         self.log_parser = LogParser()
-        self.processing = set()  # Track files currently being processed
+        self.processing: set[Path] = set()  # Track files currently being processed
         self.parser_version_manager = ParserVersionManager()
 
         # Create processed logs directory
@@ -39,39 +40,39 @@ class LogFileHandler(FileSystemEventHandler):
 
     def process_file(self, file_path: str):
         """Process a new file in the input directory."""
-        file_path = Path(file_path)
+        path_obj = Path(file_path)
 
         # Skip if already processing or not a log/data file
-        if file_path in self.processing:
+        if path_obj in self.processing:
             return
 
-        if not (file_path.suffix.lower() in [".log", ".data"]):
+        if not (path_obj.suffix.lower() in [".log", ".data"]):
             return
 
         # Wait a moment to ensure file is fully written
         time.sleep(1)
 
-        self.processing.add(file_path)
+        self.processing.add(path_obj)
 
         try:
             # Look for matching log/data pair
-            if file_path.suffix.lower() == ".log":
-                log_file = file_path
-                data_file = file_path.with_suffix(".data")
+            if path_obj.suffix.lower() == ".log":
+                log_file = path_obj
+                data_file = path_obj.with_suffix(".data")
             else:  # .data file
-                data_file = file_path
-                log_file = file_path.with_suffix(".log")
+                data_file = path_obj
+                log_file = path_obj.with_suffix(".log")
 
             # Check if both files exist
             if log_file.exists() and data_file.exists():
                 self.process_log_pair(log_file, data_file)
             else:
-                print(f"Waiting for matching pair for {file_path.name}")
+                print(f"Waiting for matching pair for {path_obj.name}")
 
         except Exception as e:
-            print(f"Error processing {file_path}: {e}")
+            print(f"Error processing {path_obj}: {e}")
         finally:
-            self.processing.discard(file_path)
+            self.processing.discard(path_obj)
 
     def process_log_pair(self, log_file: Path, data_file: Path):
         """Process a complete log/data file pair."""
@@ -122,8 +123,8 @@ class LogFileHandler(FileSystemEventHandler):
                 print(f"Warning: Could not copy files to processed_logs: {e}")
 
             # Calculate session statistics
-            message_type_counts = {}
-            aircraft_message_counts = {}
+            message_type_counts: dict[str, int] = {}
+            aircraft_message_counts: dict[int, int] = {}
 
             for msg in messages:
                 # Count messages per type
@@ -141,7 +142,7 @@ class LogFileHandler(FileSystemEventHandler):
                 "total_messages": len(messages),
                 "aircraft_ids": sorted(list(set(msg.aircraft_id for msg in messages))),
                 "message_types": message_type_counts,  # Now includes counts
-                "aircraft_message_counts": aircraft_message_counts,  # Message counts per aircraft
+                "aircraft_message_counts": aircraft_message_counts,  # Per aircraft
                 "duration": (
                     max([msg.timestamp for msg in messages])
                     - min([msg.timestamp for msg in messages])
@@ -157,7 +158,7 @@ class LogFileHandler(FileSystemEventHandler):
             # Calculate file sizes
             log_file_size = log_file.stat().st_size if log_file.exists() else 0
             data_file_size = data_file.stat().st_size if data_file.exists() else 0
-            total_file_size = log_file_size + data_file_size
+            log_file_size + data_file_size
 
             # 1. Create summary.json for quick overview
             summary_data = {
@@ -206,9 +207,10 @@ class LogFileHandler(FileSystemEventHandler):
             with open(session_dir / "messages.json", "w", encoding="utf-8") as f:
                 json.dump(messages_data, f, indent=2)
 
-            # 4. Create timeline.json - messages grouped by time intervals (for plotting)
+            # 4. Create timeline.json - messages grouped by time intervals
             timeline_data = self._create_timeline_data(messages)
-            with open(session_dir / "timeline.json", "w", encoding="utf-8") as f:
+            timeline_path = session_dir / "timeline.json"
+            with open(timeline_path, "w", encoding="utf-8") as f:
                 json.dump(timeline_data, f, indent=2)
 
             # 5. Create by_aircraft.json - messages grouped by aircraft
@@ -218,10 +220,11 @@ class LogFileHandler(FileSystemEventHandler):
 
             # 6. Create by_message_type.json - messages grouped by type
             by_message_type_data = self._group_messages_by_type(messages)
-            with open(session_dir / "by_message_type.json", "w", encoding="utf-8") as f:
+            message_type_path = session_dir / "by_message_type.json"
+            with open(message_type_path, "w", encoding="utf-8") as f:
                 json.dump(by_message_type_data, f, indent=2)
 
-            # Move original files to output directory (only if they're in input directory)
+            # Move original files to output directory (only if in input directory)
             try:
                 if str(log_file.parent) == str(self.input_dir):
                     shutil.move(str(log_file), str(session_dir / log_file.name))
@@ -234,9 +237,11 @@ class LogFileHandler(FileSystemEventHandler):
             print(f"  - Aircraft: {len(aircraft_list.aircraft)}")
             print(f"  - Messages: {len(messages)}")
             print(f"  - Output directory: {session_dir}")
-            print(
-                f"  - Generated files: summary.json, aircraft.json, messages.json, timeline.json, by_aircraft.json, by_message_type.json"
+            generated_files = (
+                "summary.json, aircraft.json, messages.json, timeline.json, "
+                "by_aircraft.json, by_message_type.json"
             )
+            print(f"  - Generated files: {generated_files}")
 
         except Exception as e:
             print(f"Error processing log pair {log_file.name}: {e}")
@@ -278,7 +283,7 @@ class LogFileHandler(FileSystemEventHandler):
             ]
 
             # Count by message type
-            type_counts = {}
+            type_counts: dict[str, int] = {}
             for msg in interval_messages:
                 type_counts[msg.message_type] = type_counts.get(msg.message_type, 0) + 1
 
