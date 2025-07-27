@@ -528,6 +528,36 @@ class FileWatcher:
         self.event_handler.parser_version_manager.save_current_version()
         print("Reprocessing complete!")
 
+    def delete_session(self, session_name: str) -> bool:
+        """Delete a processed session and all its files."""
+        import shutil
+        
+        output_path = Path(self.output_dir)
+        session_dir = output_path / session_name
+        processed_logs_dir = output_path / "processed_logs" / session_name
+        
+        deleted_something = False
+        
+        # Delete main session directory
+        if session_dir.exists() and session_dir.is_dir():
+            try:
+                shutil.rmtree(session_dir)
+                print(f"Deleted session directory: {session_dir}")
+                deleted_something = True
+            except Exception as e:
+                print(f"Error deleting session directory {session_dir}: {e}")
+        
+        # Delete processed logs directory
+        if processed_logs_dir.exists() and processed_logs_dir.is_dir():
+            try:
+                shutil.rmtree(processed_logs_dir)
+                print(f"Deleted processed logs directory: {processed_logs_dir}")
+                deleted_something = True
+            except Exception as e:
+                print(f"Error deleting processed logs directory {processed_logs_dir}: {e}")
+        
+        return deleted_something
+
 
 if __name__ == "__main__":
     # For testing

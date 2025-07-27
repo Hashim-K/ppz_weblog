@@ -5,3 +5,7 @@ __pycache__/
 # Ignore all compiled Python files
 *.py[cod]
 # ─────────────────────────────────────────────────────────
+
+backend/input/*
+backend/output/processed_logs/*
+backend/output/*/*

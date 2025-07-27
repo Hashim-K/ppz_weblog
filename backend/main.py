@@ -549,6 +549,19 @@ async def update_settings(new_settings: Dict[str, Any]):
     return {"message": "Settings updated successfully", "settings": settings.to_dict()}
 
 
+@app.delete("/sessions/{session_name}")
+async def delete_session(session_name: str):
+    """Delete a processed session and all its files"""
+    try:
+        session_deleted = file_watcher.delete_session(session_name)
+        if session_deleted:
+            return {"message": f"Session '{session_name}' deleted successfully"}
+        else:
+            raise HTTPException(status_code=404, detail=f"Session '{session_name}' not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting session: {str(e)}")
+
+
 if __name__ == "__main__":
     import uvicorn
 

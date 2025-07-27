@@ -5,11 +5,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
 	Calendar,
 	Clock,
 	Plane,
 	MessageSquare,
 	PlayCircle,
+	Trash2,
 } from "lucide-react";
 import axios from "axios";
 
@@ -45,6 +57,7 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 	);
 	const [loading, setLoading] = useState(true);
 	const [loadingSession, setLoadingSession] = useState<string | null>(null);
+	const [deletingSession, setDeletingSession] = useState<string | null>(null);
 
 	const loadSessions = async () => {
 		try {
@@ -94,6 +107,27 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 			console.error(`Failed to load session ${sessionName}:`, error);
 		} finally {
 			setLoadingSession(null);
+		}
+	};
+
+	const deleteSession = async (sessionName: string) => {
+		setDeletingSession(sessionName);
+		try {
+			await axios.delete(`http://localhost:8000/sessions/${sessionName}`);
+			
+			// Remove from local state
+			setSessionNames(prev => prev.filter(name => name !== sessionName));
+			setSessionInfos(prev => {
+				const updated = { ...prev };
+				delete updated[sessionName];
+				return updated;
+			});
+			
+			console.log(`Session ${sessionName} deleted successfully`);
+		} catch (error) {
+			console.error(`Failed to delete session ${sessionName}:`, error);
+		} finally {
+			setDeletingSession(null);
 		}
 	};
 
@@ -180,18 +214,53 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 										<CardTitle className="text-lg truncate">
 											{sessionInfo?.filename || sessionName}
 										</CardTitle>
-										<Button
-											onClick={() => loadSession(sessionName)}
-											disabled={loadingSession === sessionName}
-											size="sm"
-											className="ml-2"
-										>
-											{loadingSession === sessionName ? (
-												<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-											) : (
-												<PlayCircle className="h-4 w-4" />
-											)}
-										</Button>
+										<div className="flex items-center gap-2">
+											<AlertDialog>
+												<AlertDialogTrigger asChild>
+													<Button
+														variant="outline"
+														size="sm"
+														disabled={deletingSession === sessionName}
+														className="text-red-600 hover:text-red-700 hover:bg-red-50"
+													>
+														{deletingSession === sessionName ? (
+															<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+														) : (
+															<Trash2 className="h-4 w-4" />
+														)}
+													</Button>
+												</AlertDialogTrigger>
+												<AlertDialogContent>
+													<AlertDialogHeader>
+														<AlertDialogTitle>Delete Session</AlertDialogTitle>
+														<AlertDialogDescription>
+															Are you sure you want to delete the session &ldquo;{sessionInfo?.filename || sessionName}&rdquo;? 
+															This action cannot be undone and will permanently remove all session data.
+														</AlertDialogDescription>
+													</AlertDialogHeader>
+													<AlertDialogFooter>
+														<AlertDialogCancel>Cancel</AlertDialogCancel>
+														<AlertDialogAction
+															onClick={() => deleteSession(sessionName)}
+															className="bg-red-600 hover:bg-red-700"
+														>
+															Delete
+														</AlertDialogAction>
+													</AlertDialogFooter>
+												</AlertDialogContent>
+											</AlertDialog>
+											<Button
+												onClick={() => loadSession(sessionName)}
+												disabled={loadingSession === sessionName}
+												size="sm"
+											>
+												{loadingSession === sessionName ? (
+													<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+												) : (
+													<PlayCircle className="h-4 w-4" />
+												)}
+											</Button>
+										</div>
 									</div>
 									<p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
 										<Calendar className="h-3 w-3 mr-1" />

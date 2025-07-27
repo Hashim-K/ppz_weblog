@@ -12,7 +12,18 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plane, Calendar, Hash, Search } from "lucide-react";
+import {
+	AlertDialog,
+	AlertDialogAction,
+	AlertDialogCancel,
+	AlertDialogContent,
+	AlertDialogDescription,
+	AlertDialogFooter,
+	AlertDialogHeader,
+	AlertDialogTitle,
+	AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Loader2, Plane, Calendar, Hash, Search, Trash2 } from "lucide-react";
 import axios from "axios";
 import { MessageTable } from "./MessageTable";
 
@@ -74,6 +85,7 @@ export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }
 	const [messageTypeFilter, setMessageTypeFilter] = useState<string>("all");
 	const [searchQuery, setSearchQuery] = useState<string>("");
 	const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
+	const [deletingSession, setDeletingSession] = useState<boolean>(false);
 
 	const loadSessions = async () => {
 		setLoading(true);
@@ -144,6 +156,35 @@ export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }
 			setMessagesLoading(false);
 		}
 	}, [selectedSession, selectedAircraft, messageTypeFilter]);
+
+	const deleteCurrentSession = async () => {
+		if (!selectedSession) return;
+		
+		setDeletingSession(true);
+		try {
+			await axios.delete(`http://localhost:8000/sessions/${selectedSession}`);
+			
+			// Remove from sessions list
+			setSessions(prev => prev.filter(session => session !== selectedSession));
+			
+			// Clear current session data
+			setSelectedSession("");
+			setSessionInfo(null);
+			setMessages([]);
+			
+			// Select first available session if any
+			const remainingSessions = sessions.filter(session => session !== selectedSession);
+			if (remainingSessions.length > 0) {
+				setSelectedSession(remainingSessions[0]);
+			}
+			
+			console.log(`Session ${selectedSession} deleted successfully`);
+		} catch (error) {
+			console.error(`Failed to delete session ${selectedSession}:`, error);
+		} finally {
+			setDeletingSession(false);
+		}
+	};
 
 	// Remove the loadMoreMessages function since we're doing automatic lazy loading
 	// const loadMoreMessages = () => { ... };
@@ -239,18 +280,58 @@ export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }
 					</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<Select value={selectedSession} onValueChange={setSelectedSession}>
-						<SelectTrigger className="w-full">
-							<SelectValue placeholder="Select a session" />
-						</SelectTrigger>
-						<SelectContent>
-							{sessions.map((session) => (
-								<SelectItem key={session} value={session}>
-									{session}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
+					<div className="flex items-center gap-2">
+						<div className="flex-1">
+							<Select value={selectedSession} onValueChange={setSelectedSession}>
+								<SelectTrigger className="w-full">
+									<SelectValue placeholder="Select a session" />
+								</SelectTrigger>
+								<SelectContent>
+									{sessions.map((session) => (
+										<SelectItem key={session} value={session}>
+											{session}
+										</SelectItem>
+									))}
+								</SelectContent>
+							</Select>
+						</div>
+						{selectedSession && (
+							<AlertDialog>
+								<AlertDialogTrigger asChild>
+									<Button
+										variant="outline"
+										size="sm"
+										disabled={deletingSession}
+										className="text-red-600 hover:text-red-700 hover:bg-red-50"
+									>
+										{deletingSession ? (
+											<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
+										) : (
+											<Trash2 className="h-4 w-4" />
+										)}
+									</Button>
+								</AlertDialogTrigger>
+								<AlertDialogContent>
+									<AlertDialogHeader>
+										<AlertDialogTitle>Delete Session</AlertDialogTitle>
+										<AlertDialogDescription>
+											Are you sure you want to delete the session &ldquo;{selectedSession}&rdquo;? 
+											This action cannot be undone and will permanently remove all session data.
+										</AlertDialogDescription>
+									</AlertDialogHeader>
+									<AlertDialogFooter>
+										<AlertDialogCancel>Cancel</AlertDialogCancel>
+										<AlertDialogAction
+											onClick={deleteCurrentSession}
+											className="bg-red-600 hover:bg-red-700"
+										>
+											Delete
+										</AlertDialogAction>
+									</AlertDialogFooter>
+								</AlertDialogContent>
+							</AlertDialog>
+						)}
+					</div>
 				</CardContent>
 			</Card>
 
