@@ -82,8 +82,23 @@ async def root():
 @app.get("/sessions")
 async def get_processed_sessions():
     """Get list of all processed log sessions"""
-    sessions = file_watcher.get_processed_sessions()
-    return {"sessions": sessions}
+    try:
+        sessions = file_watcher.get_processed_sessions()
+        # Handle case where sessions might be None or empty
+        if not sessions:
+            return []
+
+        # Extract session names from the session objects
+        session_names = [
+            session.get("session_name", "")
+            for session in sessions
+            if isinstance(session, dict) and session.get("session_name")
+        ]
+        return session_names
+    except Exception as e:
+        # Return empty array instead of throwing error
+        print(f"Warning: Error getting processed sessions: {str(e)}")
+        return []
 
 
 @app.get("/parser-version")
@@ -205,6 +220,145 @@ async def get_session_file(session_name: str, file_name: str):
         raise HTTPException(status_code=500, detail=f"Error reading file: {str(e)}")
 
 
+@app.get("/sessions/{session_name}/info")
+async def get_session_info(session_name: str):
+    """Get session information including aircraft and message types"""
+    try:
+        output_path = Path("output") / session_name
+        summary_file = output_path / "summary.json"
+        aircraft_file = output_path / "aircraft.json"
+
+        if not output_path.exists() or not summary_file.exists():
+            raise HTTPException(
+                status_code=404, detail=f"Session '{session_name}' not found"
+            )
+
+        # Load summary
+        with open(summary_file, "r", encoding="utf-8") as f:
+            summary_data = json.load(f)
+
+        # Load aircraft data
+        aircraft_data = []
+        if aircraft_file.exists():
+            with open(aircraft_file, "r", encoding="utf-8") as f:
+                aircraft_json = json.load(f)
+                aircraft_data = aircraft_json.get("aircraft", [])
+
+        # Transform aircraft data for frontend - only include aircraft with actual data
+        aircraft_list = []
+        actual_aircraft_ids = summary_data.get("stats", {}).get("aircraft_ids", [])
+        
+        for aircraft in aircraft_data:
+            # Only include aircraft that have actual data in this session
+            if aircraft.get("ac_id") in actual_aircraft_ids:
+                aircraft_list.append(
+                    {
+                        "id": aircraft.get("ac_id", 0),
+                        "name": aircraft.get("name", "Unknown"),
+                        "color": f"#{hash(aircraft.get('name', 'unknown')) % 0xFFFFFF:06x}",
+                        "total_messages": 0,  # Will be calculated from actual messages
+                    }
+                )
+
+        # Get message types from summary
+        message_types = []
+        if "stats" in summary_data and "message_types" in summary_data["stats"]:
+            message_type_list = summary_data["stats"]["message_types"]
+            if isinstance(message_type_list, list):
+                # message_types is a list of strings
+                for msg_type in message_type_list:
+                    message_types.append(
+                        {
+                            "name": msg_type,
+                            "count": 0,  # Count not available in summary
+                            "description": f"Message type {msg_type}",
+                        }
+                    )
+            elif isinstance(message_type_list, dict):
+                # message_types is a dict with counts
+                for msg_type, count in message_type_list.items():
+                    message_types.append(
+                        {
+                            "name": msg_type,
+                            "count": count,
+                            "description": f"Message type {msg_type}",
+                        }
+                    )
+
+        # Get the actual log date from datetime_info, fallback to processed_at
+        log_datetime = ""
+        if "datetime_info" in summary_data and summary_data["datetime_info"].get("parsed"):
+            log_datetime = summary_data["datetime_info"]["datetime"]
+        else:
+            log_datetime = summary_data.get("processed_at", "")
+
+        return {
+            "session_id": session_name,
+            "filename": summary_data.get("log_file", session_name),
+            "file_size": summary_data.get("file_size", 0),
+            "total_messages": summary_data.get("stats", {}).get("total_messages", 0),
+            "start_time": log_datetime,  # Use actual log datetime
+            "end_time": log_datetime,
+            "duration": summary_data.get("stats", {}).get("duration", 0),
+            "aircraft": aircraft_list,
+            "message_types": message_types,
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error loading session info: {str(e)}"
+        )
+
+
+@app.get("/sessions/{session_name}/messages")
+async def get_session_messages(
+    session_name: str,
+    aircraft_id: Optional[int] = None,
+    message_type: Optional[str] = None,
+    limit: Optional[int] = None,
+):
+    """Get messages for a session with optional filtering"""
+    output_path = Path("output") / session_name
+    messages_file = output_path / "messages.json"
+
+    if not messages_file.exists():
+        raise HTTPException(status_code=404, detail="Messages file not found")
+
+    try:
+        # Load messages data
+        with open(messages_file, "r", encoding="utf-8") as f:
+            messages_json = json.load(f)
+            all_messages = messages_json.get("messages", [])
+
+        # Apply filters
+        filtered_messages = all_messages
+
+        if aircraft_id is not None:
+            filtered_messages = [
+                msg
+                for msg in filtered_messages
+                if msg.get("aircraft_id") == aircraft_id
+            ]
+
+        if message_type:
+            filtered_messages = [
+                msg
+                for msg in filtered_messages
+                if msg.get("message_type") == message_type
+            ]
+
+        # Apply limit if specified
+        if limit:
+            filtered_messages = filtered_messages[:limit]
+
+        return filtered_messages
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading messages: {str(e)}")
+
+
 @app.post("/sessions/{session_name}/load")
 async def load_session(session_name: str):
     """Load a session as the current active session"""
@@ -266,41 +420,35 @@ async def upload_files(
     log_file: UploadFile = File(..., description="Paparazzi .log file"),
     data_file: UploadFile = File(..., description="Paparazzi .data file"),
 ):
-    """Upload and parse log and data files"""
-    global current_session
-
+    """Upload log and data files to input directory for processing"""
     try:
-        # Save uploaded files temporarily
+        # Ensure input directory exists
+        input_dir = Path("input")
+        input_dir.mkdir(exist_ok=True)
+
+        # Save files to input directory
         log_content = await log_file.read()
         data_content = await data_file.read()
 
-        # Parse the files
-        log_parser = LogParser()
-        data_parser = SimpleDataParser()
+        log_path = input_dir / log_file.filename
+        data_path = input_dir / data_file.filename
 
-        # Parse log file to get message definitions
-        aircraft_config = log_parser.parse_log(log_content.decode("utf-8"))
+        # Write files
+        with open(log_path, "wb") as f:
+            f.write(log_content)
 
-        # Parse data file using the schema from log
-        parsed_data = data_parser.parse_data(data_content, aircraft_config)
-
-        # Store in session
-        current_session = {
-            "aircraft_config": aircraft_config,
-            "parsed_data": parsed_data,
-            "log_filename": log_file.filename,
-            "data_filename": data_file.filename,
-        }
+        with open(data_path, "wb") as f:
+            f.write(data_content)
 
         return {
-            "message": "Files uploaded and parsed successfully",
-            "aircraft_count": len(aircraft_config.aircraft),
-            "message_count": len(parsed_data),
-            "session_id": id(current_session),
+            "message": "Files uploaded successfully and queued for processing",
+            "log_file": log_file.filename,
+            "data_file": data_file.filename,
+            "note": "Files will be automatically processed by the file watcher",
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error parsing files: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error uploading files: {str(e)}")
 
 
 @app.get("/aircraft")
@@ -312,7 +460,7 @@ async def get_aircraft():
         )
 
     aircraft_config = current_session["aircraft_config"]
-    
+
     # aircraft_config is a list of Aircraft objects
     return {
         "aircraft": [

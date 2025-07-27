@@ -3,6 +3,7 @@ Log parser for Paparazzi UAV log files (.log)
 
 This module parses the XML-formatted log files that contain aircraft configurations
 and message definitions.
+Version: Updated for hash test
 """
 
 import xml.etree.ElementTree as ET

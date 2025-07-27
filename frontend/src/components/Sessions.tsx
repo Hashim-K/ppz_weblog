@@ -13,39 +13,66 @@ import {
 } from "lucide-react";
 import axios from "axios";
 
-interface SessionStats {
-	total_aircraft: number;
+interface SessionInfo {
+	session_id: string;
+	filename: string;
+	file_size: number;
 	total_messages: number;
-	aircraft_ids: number[];
-	message_types: string[];
+	start_time: string;
+	end_time: string;
 	duration: number;
-	start_time: number;
-	end_time: number;
-}
-
-interface ProcessedSession {
-	session_name: string;
-	processed_at: string;
-	log_file: string;
-	data_file: string;
-	stats: SessionStats;
+	aircraft: Array<{
+		id: number;
+		name: string;
+		color: string;
+		total_messages: number;
+	}>;
+	message_types: Array<{
+		name: string;
+		count: number;
+		description: string;
+	}>;
 }
 
 interface SessionsProps {
-	onSessionLoad: (sessionData: unknown) => void;
+	onSessionLoad: (sessionData: unknown, sessionId: string) => void;
 }
 
 export function Sessions({ onSessionLoad }: SessionsProps) {
-	const [sessions, setSessions] = useState<ProcessedSession[]>([]);
+	const [sessionNames, setSessionNames] = useState<string[]>([]);
+	const [sessionInfos, setSessionInfos] = useState<Record<string, SessionInfo>>(
+		{}
+	);
 	const [loading, setLoading] = useState(true);
 	const [loadingSession, setLoadingSession] = useState<string | null>(null);
 
 	const loadSessions = async () => {
 		try {
 			const response = await axios.get("http://localhost:8000/sessions");
-			setSessions(response.data.sessions);
+			// Backend now returns array directly, not { sessions: [...] }
+			const sessionNames = response.data || [];
+			setSessionNames(sessionNames);
+
+			// Load info for each session
+			const infos: Record<string, SessionInfo> = {};
+			for (const sessionName of sessionNames) {
+				try {
+					const infoResponse = await axios.get(
+						`http://localhost:8000/sessions/${sessionName}/info`
+					);
+					infos[sessionName] = infoResponse.data;
+				} catch (error) {
+					console.error(
+						`Failed to load info for session ${sessionName}:`,
+						error
+					);
+				}
+			}
+			setSessionInfos(infos);
 		} catch (error) {
 			console.error("Failed to load sessions:", error);
+			setSessionNames([]); // Set empty array on error
+			setSessionInfos({});
 		} finally {
 			setLoading(false);
 		}
@@ -60,7 +87,7 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 			);
 
 			// Call the callback to notify parent component
-			onSessionLoad(sessionData.data);
+			onSessionLoad(sessionData.data, sessionName);
 
 			console.log(`Session ${sessionName} loaded successfully`);
 		} catch (error) {
@@ -98,7 +125,7 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 			<div className="flex items-center justify-center h-64">
 				<div className="text-center">
 					<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-					<p className="text-gray-600">Loading processed sessions...</p>
+					<p className="text-gray-600 dark:text-gray-400">Loading processed sessions...</p>
 				</div>
 			</div>
 		);
@@ -109,9 +136,9 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 			<div className="flex items-center justify-between">
 				<div>
 					<h2 className="text-2xl font-bold">Processed Log Sessions</h2>
-					<p className="text-gray-600">
-						Found {sessions.length} processed log session
-						{sessions.length !== 1 ? "s" : ""}
+					<p className="text-gray-600 dark:text-gray-400">
+						Found {sessionNames.length} processed log session
+						{sessionNames.length !== 1 ? "s" : ""}
 					</p>
 				</div>
 				<Button onClick={loadSessions} variant="outline">
@@ -119,20 +146,20 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 				</Button>
 			</div>
 
-			{sessions.length === 0 ? (
+			{sessionNames.length === 0 ? (
 				<Card>
 					<CardContent className="py-8">
 						<div className="text-center">
 							<Plane className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-							<h3 className="text-lg font-medium text-gray-900 mb-2">
+							<h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
 								No processed sessions found
 							</h3>
-							<p className="text-gray-600 mb-4">
+							<p className="text-gray-600 dark:text-gray-400 mb-4">
 								Drop your .log and .data files in the backend/input folder to
 								automatically process them.
 							</p>
-							<div className="bg-gray-50 p-4 rounded-lg text-left">
-								<p className="text-sm text-gray-700 font-mono">
+							<div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg text-left">
+								<p className="text-sm text-gray-700 dark:text-gray-300 font-mono">
 									cp your_file.log your_file.data /path/to/backend/input/
 								</p>
 							</div>
@@ -141,97 +168,116 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 				</Card>
 			) : (
 				<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-					{sessions.map((session) => (
-						<Card
-							key={session.session_name}
-							className="hover:shadow-lg transition-shadow"
-						>
-							<CardHeader className="pb-3">
-								<div className="flex items-center justify-between">
-									<CardTitle className="text-lg truncate">
-										{session.session_name}
-									</CardTitle>
-									<Button
-										onClick={() => loadSession(session.session_name)}
-										disabled={loadingSession === session.session_name}
-										size="sm"
-										className="ml-2"
-									>
-										{loadingSession === session.session_name ? (
-											<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-										) : (
-											<PlayCircle className="h-4 w-4" />
-										)}
-									</Button>
-								</div>
-								<p className="text-sm text-gray-600 flex items-center">
-									<Calendar className="h-3 w-3 mr-1" />
-									{formatDate(session.processed_at)}
-								</p>
-							</CardHeader>
-
-							<CardContent className="space-y-3">
-								{/* File info */}
-								<div className="space-y-1">
-									<p className="text-xs text-gray-500">Files:</p>
-									<p className="text-sm font-mono truncate">
-										{session.log_file}
+					{sessionNames.map((sessionName) => {
+						const sessionInfo = sessionInfos[sessionName];
+						return (
+							<Card
+								key={sessionName}
+								className="hover:shadow-lg transition-shadow"
+							>
+								<CardHeader className="pb-3">
+									<div className="flex items-center justify-between">
+										<CardTitle className="text-lg truncate">
+											{sessionInfo?.filename || sessionName}
+										</CardTitle>
+										<Button
+											onClick={() => loadSession(sessionName)}
+											disabled={loadingSession === sessionName}
+											size="sm"
+											className="ml-2"
+										>
+											{loadingSession === sessionName ? (
+												<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+											) : (
+												<PlayCircle className="h-4 w-4" />
+											)}
+										</Button>
+									</div>
+									<p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
+										<Calendar className="h-3 w-3 mr-1" />
+										{sessionInfo
+											? formatDate(sessionInfo.start_time)
+											: "Loading..."}
 									</p>
-									<p className="text-sm font-mono truncate">
-										{session.data_file}
-									</p>
-								</div>
+								</CardHeader>
 
-								{/* Stats */}
-								<div className="grid grid-cols-2 gap-3">
-									<div className="text-center p-2 bg-blue-50 rounded">
-										<div className="flex items-center justify-center mb-1">
-											<Plane className="h-4 w-4 text-blue-600" />
+								<CardContent className="space-y-3">
+									{sessionInfo ? (
+										<>
+											{/* File info */}
+											<div className="space-y-1">
+												<p className="text-xs text-gray-500 dark:text-gray-400">File:</p>
+												<p className="text-sm font-mono truncate">
+													{sessionInfo.filename}
+												</p>
+											</div>
+
+											{/* Stats */}
+											<div className="grid grid-cols-2 gap-3">
+												<div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
+													<div className="flex items-center justify-center mb-1">
+														<Plane className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+													</div>
+													<p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+														{sessionInfo.aircraft.length}
+													</p>
+													<p className="text-xs text-gray-600 dark:text-gray-400">Aircraft</p>
+												</div>
+
+												<div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded">
+													<div className="flex items-center justify-center mb-1">
+														<MessageSquare className="h-4 w-4 text-green-600 dark:text-green-400" />
+													</div>
+													<p className="text-lg font-bold text-green-600 dark:text-green-400">
+														{sessionInfo.total_messages.toLocaleString()}
+													</p>
+													<p className="text-xs text-gray-600 dark:text-gray-400">Messages</p>
+												</div>
+											</div>
+
+											{/* Duration */}
+											<div className="flex items-center justify-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
+												<Clock className="h-4 w-4 text-gray-600 dark:text-gray-400 mr-2" />
+												<span className="text-sm font-medium">
+													{formatDuration(sessionInfo.duration)}
+												</span>
+											</div>
+
+											{/* Aircraft IDs */}
+											<div>
+												<p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+													Aircraft IDs:
+												</p>
+												<div className="flex flex-wrap gap-1">
+													{sessionInfo.aircraft.slice(0, 5).map((aircraft) => (
+														<Badge
+															key={aircraft.id}
+															variant="outline"
+															className="text-xs"
+														>
+															{aircraft.id}
+														</Badge>
+													))}
+													{sessionInfo.aircraft.length > 5 && (
+														<Badge variant="outline" className="text-xs">
+															+{sessionInfo.aircraft.length - 5} more
+														</Badge>
+													)}
+												</div>
+											</div>
+										</>
+									) : (
+										<div className="flex items-center justify-center py-4">
+											<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+											<span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+												Loading session info...
+											</span>
 										</div>
-										<p className="text-lg font-bold text-blue-600">
-											{session.stats.total_aircraft}
-										</p>
-										<p className="text-xs text-gray-600">Aircraft</p>
-									</div>
-
-									<div className="text-center p-2 bg-green-50 rounded">
-										<div className="flex items-center justify-center mb-1">
-											<MessageSquare className="h-4 w-4 text-green-600" />
-										</div>
-										<p className="text-lg font-bold text-green-600">
-											{session.stats.total_messages.toLocaleString()}
-										</p>
-										<p className="text-xs text-gray-600">Messages</p>
-									</div>
-								</div>
-
-								{/* Duration */}
-								<div className="flex items-center justify-center p-2 bg-gray-50 rounded">
-									<Clock className="h-4 w-4 text-gray-600 mr-2" />
-									<span className="text-sm font-medium">
-										{formatDuration(session.stats.duration)}
-									</span>
-								</div>
-
-								{/* Aircraft IDs */}
-								<div>
-									<p className="text-xs text-gray-500 mb-1">Aircraft IDs:</p>
-									<div className="flex flex-wrap gap-1">
-										{session.stats.aircraft_ids.slice(0, 5).map((id) => (
-											<Badge key={id} variant="outline" className="text-xs">
-												{id}
-											</Badge>
-										))}
-										{session.stats.aircraft_ids.length > 5 && (
-											<Badge variant="outline" className="text-xs">
-												+{session.stats.aircraft_ids.length - 5}
-											</Badge>
-										)}
-									</div>
-								</div>
-							</CardContent>
-						</Card>
-					))}
+									)}
+								</CardContent>
+							</Card>
+						);
+					})}
 				</div>
 			)}
 		</div>

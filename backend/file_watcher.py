@@ -111,13 +111,13 @@ class LogFileHandler(FileSystemEventHandler):
                 source_data = data_file
                 dest_log = processed_session_dir / log_file.name
                 dest_data = processed_session_dir / data_file.name
-                
+
                 # Only copy if source and destination are different
                 if source_log.resolve() != dest_log.resolve():
                     shutil.copy2(source_log, dest_log)
                 if source_data.resolve() != dest_data.resolve():
                     shutil.copy2(source_data, dest_data)
-                    
+
             except Exception as e:
                 print(f"Warning: Could not copy files to processed_logs: {e}")
 

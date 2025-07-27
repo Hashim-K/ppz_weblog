@@ -1,13 +1,20 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
-import { Settings as SettingsIcon, Save, RotateCcw } from "lucide-react";
+import {
+	Settings as SettingsIcon,
+	Save,
+	RotateCcw,
+	Moon,
+	Sun,
+	Monitor,
+} from "lucide-react";
 import axios from "axios";
+import { useTheme } from "@/components/theme-provider";
 
 interface ParserSettings {
 	max_message_size: number;
@@ -32,34 +39,85 @@ interface ExportSettings {
 	include_metadata: boolean;
 }
 
+interface UISettings {
+	theme: "system" | "light" | "dark";
+	aircraftSortBy: "id" | "name";
+}
+
 interface SettingsData {
 	parser: ParserSettings;
 	visualization: VisualizationSettings;
 	export: ExportSettings;
+	ui: UISettings;
 }
 
-export function Settings() {
+interface SettingsProps {
+	onSettingsChange: (settings: SettingsData) => void;
+}
+
+export function Settings({ onSettingsChange }: SettingsProps) {
 	const [settings, setSettings] = useState<SettingsData | null>(null);
 	const [loading, setLoading] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const [message, setMessage] = useState<string | null>(null);
+	const { theme, setTheme } = useTheme();
 
-	useEffect(() => {
-		loadSettings();
-	}, []);
-
-	const loadSettings = async () => {
+	const loadSettings = useCallback(async () => {
 		setLoading(true);
 		try {
 			const response = await axios.get("http://localhost:8000/settings");
-			setSettings(response.data);
+			const loadedSettings = response.data;
+
+			// Ensure UI settings exist with defaults
+			if (!loadedSettings.ui) {
+				loadedSettings.ui = {
+					theme: "system" as const,
+					aircraftSortBy: "id" as const,
+				};
+			}
+
+			setSettings(loadedSettings);
+			onSettingsChange(loadedSettings);
 		} catch (error) {
 			console.error("Failed to load settings:", error);
 			setMessage("Failed to load settings");
+			// Set default settings on load failure
+			const defaultSettings: SettingsData = {
+				parser: {
+					max_message_size: 1024,
+					skip_unknown_messages: true,
+					parse_debug_messages: false,
+					time_offset: 0.0,
+					aircraft_filter: null,
+					message_type_filter: null,
+				},
+				visualization: {
+					max_points_per_plot: 10000,
+					time_window_seconds: 60.0,
+					auto_refresh: false,
+					refresh_interval: 1.0,
+				},
+				export: {
+					include_raw_data: false,
+					decimal_places: 6,
+					time_format: "timestamp",
+					include_metadata: true,
+				},
+				ui: {
+					theme: "system",
+					aircraftSortBy: "id",
+				},
+			};
+			setSettings(defaultSettings);
+			onSettingsChange(defaultSettings);
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [onSettingsChange]);
+
+	useEffect(() => {
+		loadSettings();
+	}, [loadSettings]);
 
 	const saveSettings = async () => {
 		if (!settings) return;
@@ -68,6 +126,7 @@ export function Settings() {
 		try {
 			await axios.post("http://localhost:8000/settings", settings);
 			setMessage("Settings saved successfully");
+			onSettingsChange(settings);
 			setTimeout(() => setMessage(null), 3000);
 		} catch (error) {
 			console.error("Failed to save settings:", error);
@@ -78,7 +137,7 @@ export function Settings() {
 	};
 
 	const resetToDefaults = () => {
-		setSettings({
+		const defaultSettings: SettingsData = {
 			parser: {
 				max_message_size: 1024,
 				skip_unknown_messages: true,
@@ -99,7 +158,13 @@ export function Settings() {
 				time_format: "timestamp",
 				include_metadata: true,
 			},
-		});
+			ui: {
+				theme: "system",
+				aircraftSortBy: "id",
+			},
+		};
+		setSettings(defaultSettings);
+		onSettingsChange(defaultSettings);
 	};
 
 	const updateParserSetting = (key: keyof ParserSettings, value: unknown) => {
@@ -136,6 +201,25 @@ export function Settings() {
 				[key]: value,
 			},
 		});
+	};
+
+	const updateUISetting = (key: keyof UISettings, value: unknown) => {
+		if (!settings) return;
+		
+		// Handle theme changes through the theme provider
+		if (key === "theme") {
+			setTheme(value as "system" | "light" | "dark");
+		}
+		
+		const updatedSettings = {
+			...settings,
+			ui: {
+				...settings.ui,
+				[key]: value,
+			},
+		};
+		setSettings(updatedSettings);
+		onSettingsChange(updatedSettings);
 	};
 
 	if (loading || !settings) {
@@ -235,7 +319,7 @@ export function Settings() {
 							<div>
 								<p className="font-medium">Skip Unknown Messages</p>
 								<p className="text-sm text-gray-600">
-									Ignore messages that don't match known definitions
+									Ignore messages that don&apos;t match known definitions
 								</p>
 							</div>
 							<Switch
@@ -405,6 +489,87 @@ export function Settings() {
 									updateExportSetting("include_metadata", checked)
 								}
 							/>
+						</div>
+					</div>
+				</CardContent>
+			</Card>
+
+			{/* UI Settings */}
+			<Card>
+				<CardHeader>
+					<CardTitle className="flex items-center gap-2">
+						<Monitor className="h-5 w-5" />
+						User Interface
+					</CardTitle>
+				</CardHeader>
+				<CardContent>
+					<div className="space-y-6">
+						<div className="space-y-4">
+							<div className="flex items-center justify-between">
+								<div>
+									<p className="font-medium">Theme</p>
+									<p className="text-sm text-gray-600">
+										Choose your preferred color theme
+									</p>
+								</div>
+								<div className="flex items-center gap-2">
+									<Button
+										variant={
+											theme === "light" ? "default" : "outline"
+										}
+										size="sm"
+										onClick={() => updateUISetting("theme", "light")}
+										className="flex items-center gap-1"
+									>
+										<Sun className="h-4 w-4" />
+										Light
+									</Button>
+									<Button
+										variant={
+											theme === "dark" ? "default" : "outline"
+										}
+										size="sm"
+										onClick={() => updateUISetting("theme", "dark")}
+										className="flex items-center gap-1"
+									>
+										<Moon className="h-4 w-4" />
+										Dark
+									</Button>
+									<Button
+										variant={
+											theme === "system" ? "default" : "outline"
+										}
+										size="sm"
+										onClick={() => updateUISetting("theme", "system")}
+										className="flex items-center gap-1"
+									>
+										<Monitor className="h-4 w-4" />
+										System
+									</Button>
+								</div>
+							</div>
+
+							<div className="flex items-center justify-between">
+								<div>
+									<p className="font-medium">Aircraft Sorting</p>
+									<p className="text-sm text-gray-600">
+										Default sorting for aircraft dropdown
+									</p>
+								</div>
+								<select
+									className="w-32 p-2 border rounded-md"
+									value={settings.ui.aircraftSortBy}
+									onChange={(e) =>
+										updateUISetting(
+											"aircraftSortBy",
+											e.target.value as "id" | "name"
+										)
+									}
+								>
+									<option value="id">By ID</option>
+									<option value="name">By Name</option>
+								</select>
+							</div>
 						</div>
 					</div>
 				</CardContent>

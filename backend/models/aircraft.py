@@ -67,6 +67,7 @@ class MessageDefinition:
 
 
 @dataclass
+@dataclass
 class Aircraft:
     """Represents an aircraft configuration from the log file."""
 
