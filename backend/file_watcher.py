@@ -122,13 +122,26 @@ class LogFileHandler(FileSystemEventHandler):
                 print(f"Warning: Could not copy files to processed_logs: {e}")
 
             # Calculate session statistics
+            message_type_counts = {}
+            aircraft_message_counts = {}
+
+            for msg in messages:
+                # Count messages per type
+                msg_type = msg.message_type
+                message_type_counts[msg_type] = message_type_counts.get(msg_type, 0) + 1
+
+                # Count messages per aircraft
+                aircraft_id = msg.aircraft_id
+                aircraft_message_counts[aircraft_id] = (
+                    aircraft_message_counts.get(aircraft_id, 0) + 1
+                )
+
             stats = {
                 "total_aircraft": len(aircraft_list.aircraft),
                 "total_messages": len(messages),
                 "aircraft_ids": sorted(list(set(msg.aircraft_id for msg in messages))),
-                "message_types": sorted(
-                    list(set(msg.message_type for msg in messages))
-                ),
+                "message_types": message_type_counts,  # Now includes counts
+                "aircraft_message_counts": aircraft_message_counts,  # Message counts per aircraft
                 "duration": (
                     max([msg.timestamp for msg in messages])
                     - min([msg.timestamp for msg in messages])
@@ -141,12 +154,18 @@ class LogFileHandler(FileSystemEventHandler):
                 "end_time": max([msg.timestamp for msg in messages]) if messages else 0,
             }
 
+            # Calculate file sizes
+            log_file_size = log_file.stat().st_size if log_file.exists() else 0
+            data_file_size = data_file.stat().st_size if data_file.exists() else 0
+            total_file_size = log_file_size + data_file_size
+
             # 1. Create summary.json for quick overview
             summary_data = {
                 "session_name": session_name,
                 "processed_at": datetime.now().isoformat(),
                 "log_file": log_file.name,
                 "data_file": data_file.name,
+                "file_size": data_file_size,
                 "datetime_info": datetime_info,
                 "parser_version": parser_version,
                 "stats": stats,

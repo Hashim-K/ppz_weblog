@@ -97,9 +97,8 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 				// Load backend settings
 				const response = await axios.get("http://localhost:8000/settings");
 				const loadedSettings = response.data;
-				
+
 				setSettings(loadedSettings || defaultSettings);
-				
 			} catch (error) {
 				console.error("Failed to load settings:", error);
 				setMessage("Failed to load settings");
@@ -107,7 +106,7 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 			}
 
 			// Load UI settings from localStorage
-			const savedUISettings = localStorage.getItem('ui-settings');
+			const savedUISettings = localStorage.getItem("ui-settings");
 			if (savedUISettings) {
 				const parsedUISettings = JSON.parse(savedUISettings);
 				setUISettings(parsedUISettings);
@@ -126,7 +125,7 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 	// Save UI settings to localStorage when they change (after initial load)
 	useEffect(() => {
 		if (loading) return; // Don't save during initial load
-		localStorage.setItem('ui-settings', JSON.stringify(uiSettings));
+		localStorage.setItem("ui-settings", JSON.stringify(uiSettings));
 	}, [uiSettings, loading]);
 
 	const saveSettings = async () => {
@@ -151,21 +150,24 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 	};
 
 	const updateParserSetting = (key: keyof ParserSettings, value: unknown) => {
-		setSettings(prev => ({
+		setSettings((prev) => ({
 			...prev,
 			parser: { ...prev.parser, [key]: value },
 		}));
 	};
 
-	const updateVisualizationSetting = (key: keyof VisualizationSettings, value: unknown) => {
-		setSettings(prev => ({
+	const updateVisualizationSetting = (
+		key: keyof VisualizationSettings,
+		value: unknown
+	) => {
+		setSettings((prev) => ({
 			...prev,
 			visualization: { ...prev.visualization, [key]: value },
 		}));
 	};
 
 	const updateExportSetting = (key: keyof ExportSettings, value: unknown) => {
-		setSettings(prev => ({
+		setSettings((prev) => ({
 			...prev,
 			export: { ...prev.export, [key]: value },
 		}));
@@ -176,9 +178,9 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 		if (key === "theme") {
 			setTheme(value as "system" | "light" | "dark");
 		}
-		
+
 		// Update UI settings state (will automatically save to localStorage)
-		setUISettings(prev => ({
+		setUISettings((prev) => ({
 			...prev,
 			[key]: value,
 		}));
@@ -253,7 +255,10 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								type="number"
 								value={settings.parser.max_message_size}
 								onChange={(e) =>
-									updateParserSetting("max_message_size", parseInt(e.target.value))
+									updateParserSetting(
+										"max_message_size",
+										parseInt(e.target.value)
+									)
 								}
 							/>
 						</div>
@@ -320,7 +325,10 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								type="number"
 								value={settings.visualization.max_points_per_plot}
 								onChange={(e) =>
-									updateVisualizationSetting("max_points_per_plot", parseInt(e.target.value))
+									updateVisualizationSetting(
+										"max_points_per_plot",
+										parseInt(e.target.value)
+									)
 								}
 							/>
 						</div>
@@ -334,7 +342,10 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								step="0.1"
 								value={settings.visualization.time_window_seconds}
 								onChange={(e) =>
-									updateVisualizationSetting("time_window_seconds", parseFloat(e.target.value))
+									updateVisualizationSetting(
+										"time_window_seconds",
+										parseFloat(e.target.value)
+									)
 								}
 							/>
 						</div>
@@ -348,7 +359,10 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								step="0.1"
 								value={settings.visualization.refresh_interval}
 								onChange={(e) =>
-									updateVisualizationSetting("refresh_interval", parseFloat(e.target.value))
+									updateVisualizationSetting(
+										"refresh_interval",
+										parseFloat(e.target.value)
+									)
 								}
 							/>
 						</div>
@@ -386,7 +400,10 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								max="10"
 								value={settings.export.decimal_places}
 								onChange={(e) =>
-									updateExportSetting("decimal_places", parseInt(e.target.value))
+									updateExportSetting(
+										"decimal_places",
+										parseInt(e.target.value)
+									)
 								}
 							/>
 						</div>

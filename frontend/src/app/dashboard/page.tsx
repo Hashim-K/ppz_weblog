@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { Dashboard } from "@/components/Dashboard";
 
 interface Settings {
@@ -33,9 +33,23 @@ interface Settings {
 
 export default function DashboardPage() {
 	const searchParams = useSearchParams();
+	const router = useRouter();
+	const pathname = usePathname();
 	const sessionParam = searchParams.get("session");
 
 	const [selectedSessionId, setSelectedSessionId] = useState<string>("");
+
+	// Update URL when session changes
+	const updateSessionInUrl = (sessionId: string) => {
+		const params = new URLSearchParams(searchParams);
+		if (sessionId) {
+			params.set("session", sessionId);
+		} else {
+			params.delete("session");
+		}
+		router.replace(`${pathname}?${params.toString()}`);
+		setSelectedSessionId(sessionId);
+	};
 	const [settings] = useState<Settings>({
 		ui: {
 			theme: "system",
@@ -80,7 +94,7 @@ export default function DashboardPage() {
 				</div>
 				<Dashboard
 					selectedSessionId={selectedSessionId}
-					setSelectedSessionId={setSelectedSessionId}
+					setSelectedSessionId={updateSessionInUrl}
 					settings={settings}
 				/>
 			</div>

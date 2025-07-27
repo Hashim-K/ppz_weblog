@@ -72,9 +72,17 @@ interface DashboardProps {
 	settings?: Settings;
 	preloadedSessionData?: unknown;
 	preloadedSessionId?: string;
+	selectedSessionId?: string;
+	setSelectedSessionId?: (sessionId: string) => void;
 }
 
-export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }: DashboardProps) {
+export function Dashboard({
+	settings,
+	preloadedSessionData,
+	preloadedSessionId,
+	selectedSessionId: externalSelectedSessionId,
+	setSelectedSessionId: externalSetSelectedSessionId,
+}: DashboardProps) {
 	const [sessions, setSessions] = useState<string[]>([]);
 	const [selectedSession, setSelectedSession] = useState<string>("");
 	const [sessionInfo, setSessionInfo] = useState<SessionInfo | null>(null);
@@ -82,19 +90,27 @@ export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }
 	const [loading, setLoading] = useState(false);
 	const [messagesLoading, setMessagesLoading] = useState(false);
 	const [selectedAircraft, setSelectedAircraft] = useState<number | null>(null);
-	const [messageTypeFilter, setMessageTypeFilter] = useState<string>("all");
+	const [messageTypeFilter, setMessageTypeFilter] = useState<string[]>([]);
 	const [searchQuery, setSearchQuery] = useState<string>("");
 	const [isLoadingMore, setIsLoadingMore] = useState<boolean>(false);
 	const [deletingSession, setDeletingSession] = useState<boolean>(false);
+
+	// Wrapper function to handle session selection and URL updates
+	const handleSessionSelection = useCallback(
+		(sessionId: string) => {
+			setSelectedSession(sessionId);
+			if (externalSetSelectedSessionId) {
+				externalSetSelectedSessionId(sessionId);
+			}
+		},
+		[externalSetSelectedSessionId]
+	);
 
 	const loadSessions = async () => {
 		setLoading(true);
 		try {
 			const response = await axios.get("http://localhost:8000/sessions");
 			setSessions(response.data || []);
-			if (response.data && response.data.length > 0) {
-				setSelectedSession(response.data[0]);
-			}
 		} catch (error) {
 			console.error("Failed to load sessions:", error);
 		} finally {
@@ -104,36 +120,44 @@ export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }
 
 	const deleteCurrentSession = async () => {
 		if (!selectedSession) return;
-		
+
 		setDeletingSession(true);
 		try {
 			await axios.delete(`http://localhost:8000/sessions/${selectedSession}`);
-			
+
 			// Remove from sessions list
-			setSessions(prev => prev.filter(session => session !== selectedSession));
-			
+			setSessions((prev) =>
+				prev.filter((session) => session !== selectedSession)
+			);
+
 			// Clear current session data
-			setSelectedSession("");
+			handleSessionSelection("");
 			setSessionInfo(null);
 			setMessages([]);
-			
+
 			// Select first available session if any
-			const remainingSessions = sessions.filter(session => session !== selectedSession);
+			const remainingSessions = sessions.filter(
+				(session) => session !== selectedSession
+			);
 			if (remainingSessions.length > 0) {
-				setSelectedSession(remainingSessions[0]);
+				handleSessionSelection(remainingSessions[0]);
 			}
-			
+
 			console.log(`Session ${selectedSession} deleted successfully`);
 		} catch (error) {
 			console.error(`Failed to delete session ${selectedSession}:`, error);
 		} finally {
 			setDeletingSession(false);
 		}
-	};	const loadSessionInfo = async (sessionId: string) => {
+	};
+	const loadSessionInfo = async (sessionId: string) => {
 		try {
 			const response = await axios.get(
 				`http://localhost:8000/sessions/${sessionId}/info`
 			);
+			console.log("Session info response:", response.data);
+			console.log("Message types:", response.data.message_types);
+			console.log("Sample message type:", response.data.message_types?.[0]);
 			setSessionInfo(response.data);
 		} catch (error) {
 			console.error("Failed to load session info:", error);
@@ -149,8 +173,10 @@ export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }
 			if (selectedAircraft !== null) {
 				params.append("aircraft_id", selectedAircraft.toString());
 			}
-			if (messageTypeFilter && messageTypeFilter !== "all") {
-				params.append("message_type", messageTypeFilter);
+			if (messageTypeFilter && messageTypeFilter.length > 0) {
+				messageTypeFilter.forEach((type) => {
+					params.append("message_type", type);
+				});
 			}
 
 			// First, load the first 1000 messages quickly
@@ -187,7 +213,7 @@ export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }
 	useEffect(() => {
 		// If we have preloaded session data, use it directly
 		if (preloadedSessionId && preloadedSessionData) {
-			setSelectedSession(preloadedSessionId);
+			handleSessionSelection(preloadedSessionId);
 			// Parse the preloaded data to extract messages
 			const data = preloadedSessionData as { messages?: Message[] };
 			if (data.messages) {
@@ -200,7 +226,17 @@ export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }
 			// Default behavior - load sessions and select first one
 			loadSessions();
 		}
-	}, [preloadedSessionId, preloadedSessionData]);
+	}, [preloadedSessionId, preloadedSessionData, handleSessionSelection]);
+
+	// Handle external session ID changes (from URL)
+	useEffect(() => {
+		if (
+			externalSelectedSessionId &&
+			externalSelectedSessionId !== selectedSession
+		) {
+			setSelectedSession(externalSelectedSessionId);
+		}
+	}, [externalSelectedSessionId, selectedSession]);
 
 	useEffect(() => {
 		if (selectedSession) {
@@ -215,6 +251,15 @@ export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }
 	}, [selectedSession, selectedAircraft, messageTypeFilter, loadMessages]);
 
 	const filteredMessages = messages.filter((message) => {
+		// Apply message type filter
+		if (
+			messageTypeFilter.length > 0 &&
+			!messageTypeFilter.includes(message.message_type)
+		) {
+			return false;
+		}
+
+		// Apply search query filter
 		if (!searchQuery) return true;
 		const searchLower = searchQuery.toLowerCase();
 		return (
@@ -277,7 +322,10 @@ export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }
 				<CardContent>
 					<div className="flex items-center gap-2">
 						<div className="flex-1">
-							<Select value={selectedSession} onValueChange={setSelectedSession}>
+							<Select
+								value={selectedSession}
+								onValueChange={handleSessionSelection}
+							>
 								<SelectTrigger className="w-full">
 									<SelectValue placeholder="Select a session" />
 								</SelectTrigger>
@@ -310,8 +358,9 @@ export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }
 									<AlertDialogHeader>
 										<AlertDialogTitle>Delete Session</AlertDialogTitle>
 										<AlertDialogDescription>
-											Are you sure you want to delete the session &ldquo;{selectedSession}&rdquo;? 
-											This action cannot be undone and will permanently remove all session data.
+											Are you sure you want to delete the session &ldquo;
+											{selectedSession}&rdquo;? This action cannot be undone and
+											will permanently remove all session data.
 										</AlertDialogDescription>
 									</AlertDialogHeader>
 									<AlertDialogFooter>
@@ -438,27 +487,61 @@ export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }
 							</CardTitle>
 						</CardHeader>
 						<CardContent>
-							<Select
-								value={messageTypeFilter}
-								onValueChange={setMessageTypeFilter}
-							>
-								<SelectTrigger className="w-full">
-									<SelectValue placeholder="All Message Types" />
-								</SelectTrigger>
-								<SelectContent>
-									<SelectItem value="all">All Message Types</SelectItem>
+							<div className="space-y-2">
+								<div className="flex items-center gap-3 mb-4 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
+									<Button
+										variant={
+											messageTypeFilter.length === 0 ? "default" : "outline"
+										}
+										size="sm"
+										onClick={() => setMessageTypeFilter([])}
+										className="shrink-0"
+									>
+										All Types
+									</Button>
+									<span className="text-sm text-gray-600 dark:text-gray-400">
+										{messageTypeFilter.length === 0
+											? "All message types"
+											: `${messageTypeFilter.length} selected`}
+									</span>
+								</div>
+								<div className="max-h-48 overflow-y-auto space-y-2 p-1">
 									{sessionInfo.message_types
 										.sort((a, b) => b.count - a.count)
-										.map((messageType) => (
-											<SelectItem
-												key={messageType.name}
-												value={messageType.name}
-											>
-												{messageType.name} ({messageType.count})
-											</SelectItem>
-										))}
-								</SelectContent>
-							</Select>
+										.map((messageType) => {
+											const isSelected = messageTypeFilter.includes(
+												messageType.name
+											);
+											return (
+												<Button
+													key={messageType.name}
+													variant={isSelected ? "default" : "outline"}
+													size="sm"
+													onClick={() => {
+														if (isSelected) {
+															setMessageTypeFilter((prev) =>
+																prev.filter((type) => type !== messageType.name)
+															);
+														} else {
+															setMessageTypeFilter((prev) => [
+																...prev,
+																messageType.name,
+															]);
+														}
+													}}
+													className="w-full justify-between py-3 px-4 h-auto"
+												>
+													<span className="text-left truncate mr-2">
+														{messageType.name}
+													</span>
+													<Badge variant="secondary" className="shrink-0">
+														{messageType.count || 0}
+													</Badge>
+												</Button>
+											);
+										})}
+								</div>
+							</div>
 						</CardContent>
 					</Card>
 				</div>
@@ -471,6 +554,12 @@ export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }
 						<CardTitle className="flex items-center gap-2">
 							<Hash className="h-5 w-5" />
 							Messages ({filteredMessages.length.toLocaleString()})
+							{messageTypeFilter.length > 0 && (
+								<Badge variant="outline">
+									{messageTypeFilter.length} type
+									{messageTypeFilter.length !== 1 ? "s" : ""} filtered
+								</Badge>
+							)}
 						</CardTitle>
 						<div className="flex items-center gap-2 mt-2">
 							<div className="relative flex-1">
@@ -482,6 +571,15 @@ export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }
 									className="pl-10"
 								/>
 							</div>
+							{messageTypeFilter.length > 0 && (
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={() => setMessageTypeFilter([])}
+								>
+									Clear Filters
+								</Button>
+							)}
 						</div>
 					</CardHeader>
 					<CardContent className="p-0">

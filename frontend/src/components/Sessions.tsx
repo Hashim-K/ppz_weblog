@@ -31,9 +31,16 @@ interface SessionInfo {
 	filename: string;
 	file_size: number;
 	total_messages: number;
-	start_time: string;
-	end_time: string;
+	start_time: number;
+	end_time: number;
 	duration: number;
+	datetime_info?: {
+		datetime?: string;
+		date_string?: string;
+		time_string?: string;
+		timestamp?: number;
+		parsed?: boolean;
+	};
 	aircraft: Array<{
 		id: number;
 		name: string;
@@ -98,8 +105,8 @@ export function Sessions() {
 		try {
 			await axios.delete(`http://localhost:8000/sessions/${sessionName}`);
 			// Remove session from local state
-			setSessionNames(prev => prev.filter(name => name !== sessionName));
-			setSessionInfos(prev => {
+			setSessionNames((prev) => prev.filter((name) => name !== sessionName));
+			setSessionInfos((prev) => {
 				const newInfos = { ...prev };
 				delete newInfos[sessionName];
 				return newInfos;
@@ -130,9 +137,46 @@ export function Sessions() {
 		}
 	};
 
-	const formatDate = (isoString: string): string => {
-		const date = new Date(isoString);
-		return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+	const formatDate = (sessionInfo: SessionInfo): string => {
+		// First try to use datetime_info if available
+		if (sessionInfo.datetime_info?.datetime) {
+			const date = new Date(sessionInfo.datetime_info.datetime);
+			if (!isNaN(date.getTime())) {
+				return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+			}
+		}
+
+		// Fallback: try to use the start_time timestamp (if it's a valid timestamp)
+		if (sessionInfo.start_time && sessionInfo.start_time > 1000000000) {
+			// Looks like a Unix timestamp, convert to milliseconds
+			const date = new Date(sessionInfo.start_time * 1000);
+			if (!isNaN(date.getTime())) {
+				return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+			}
+		}
+
+		// If all else fails, try to parse from filename
+		const filename = sessionInfo.filename || sessionInfo.session_id;
+		const match = filename.match(
+			/(\d{2})_(\d{2})_(\d{2})__(\d{2})_(\d{2})_(\d{2})/
+		);
+		if (match) {
+			const [, year, month, day, hour, minute, second] = match;
+			const fullYear = 2000 + parseInt(year);
+			const date = new Date(
+				fullYear,
+				parseInt(month) - 1,
+				parseInt(day),
+				parseInt(hour),
+				parseInt(minute),
+				parseInt(second)
+			);
+			if (!isNaN(date.getTime())) {
+				return date.toLocaleDateString() + " " + date.toLocaleTimeString();
+			}
+		}
+
+		return "Unknown date";
 	};
 
 	if (loading) {
@@ -216,8 +260,10 @@ export function Sessions() {
 													<AlertDialogHeader>
 														<AlertDialogTitle>Delete Session</AlertDialogTitle>
 														<AlertDialogDescription>
-															Are you sure you want to delete the session &ldquo;{sessionName}&rdquo;? 
-															This action cannot be undone and will permanently remove all session data.
+															Are you sure you want to delete the session
+															&ldquo;{sessionName}&rdquo;? This action cannot be
+															undone and will permanently remove all session
+															data.
 														</AlertDialogDescription>
 													</AlertDialogHeader>
 													<AlertDialogFooter>
@@ -235,9 +281,7 @@ export function Sessions() {
 									</div>
 									<p className="text-sm text-gray-600 flex items-center">
 										<Calendar className="h-3 w-3 mr-1" />
-										{sessionInfo
-											? formatDate(sessionInfo.start_time)
-											: "Loading..."}
+										{sessionInfo ? formatDate(sessionInfo) : "Loading..."}
 									</p>
 								</CardHeader>
 
@@ -254,54 +298,89 @@ export function Sessions() {
 
 											{/* Stats */}
 											<div className="grid grid-cols-2 gap-3">
-												<div className="text-center p-2 bg-blue-50 rounded">
+												<div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
 													<div className="flex items-center justify-center mb-1">
-														<Plane className="h-4 w-4 text-blue-600" />
+														<Plane className="h-4 w-4 text-blue-600 dark:text-blue-400" />
 													</div>
-													<p className="text-lg font-bold text-blue-600">
-														{sessionInfo.aircraft.length}
+													<p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+														{
+															sessionInfo.aircraft.filter(
+																(aircraft) => aircraft.total_messages > 0
+															).length
+														}
 													</p>
-													<p className="text-xs text-gray-600">Aircraft</p>
+													<p className="text-xs text-gray-600 dark:text-gray-400">
+														Aircraft
+													</p>
 												</div>
 
-												<div className="text-center p-2 bg-green-50 rounded">
+												<div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded">
 													<div className="flex items-center justify-center mb-1">
-														<MessageSquare className="h-4 w-4 text-green-600" />
+														<MessageSquare className="h-4 w-4 text-green-600 dark:text-green-400" />
 													</div>
-													<p className="text-lg font-bold text-green-600">
+													<p className="text-lg font-bold text-green-600 dark:text-green-400">
 														{sessionInfo.total_messages.toLocaleString()}
 													</p>
-													<p className="text-xs text-gray-600">Messages</p>
+													<p className="text-xs text-gray-600 dark:text-gray-400">
+														Messages
+													</p>
 												</div>
 											</div>
 
 											{/* Duration */}
-											<div className="flex items-center justify-center p-2 bg-gray-50 rounded">
-												<Clock className="h-4 w-4 text-gray-600 mr-2" />
-												<span className="text-sm font-medium">
+											<div className="flex items-center justify-center p-2 bg-gray-100 dark:bg-gray-800 rounded">
+												<Clock className="h-4 w-4 text-gray-600 dark:text-gray-400 mr-2" />
+												<span className="text-sm font-medium text-gray-900 dark:text-gray-100">
 													{formatDuration(sessionInfo.duration)}
 												</span>
 											</div>
 
 											{/* Aircraft IDs */}
 											<div>
-												<p className="text-xs text-gray-500 mb-1">
+												<p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
 													Aircraft IDs:
 												</p>
 												<div className="flex flex-wrap gap-1">
-													{sessionInfo.aircraft.slice(0, 5).map((aircraft) => (
-														<Badge
-															key={aircraft.id}
-															variant="outline"
-															className="text-xs"
-														>
-															{aircraft.id}
-														</Badge>
-													))}
-													{sessionInfo.aircraft.length > 5 && (
-														<Badge variant="outline" className="text-xs">
-															+{sessionInfo.aircraft.length - 5} more
-														</Badge>
+													{sessionInfo.aircraft &&
+													sessionInfo.aircraft.length > 0 ? (
+														<>
+															{sessionInfo.aircraft
+																.filter(
+																	(aircraft) => aircraft.total_messages > 0
+																)
+																.slice(0, 5)
+																.map((aircraft) => (
+																	<Badge
+																		key={aircraft.id}
+																		variant="outline"
+																		className="text-xs"
+																	>
+																		{aircraft.id}
+																	</Badge>
+																))}
+															{sessionInfo.aircraft.filter(
+																(aircraft) => aircraft.total_messages > 0
+															).length > 5 && (
+																<Badge variant="outline" className="text-xs">
+																	+
+																	{sessionInfo.aircraft.filter(
+																		(aircraft) => aircraft.total_messages > 0
+																	).length - 5}{" "}
+																	more
+																</Badge>
+															)}
+															{sessionInfo.aircraft.filter(
+																(aircraft) => aircraft.total_messages > 0
+															).length === 0 && (
+																<span className="text-xs text-gray-500 dark:text-gray-400">
+																	No active aircraft
+																</span>
+															)}
+														</>
+													) : (
+														<span className="text-xs text-gray-500 dark:text-gray-400">
+															No aircraft data
+														</span>
 													)}
 												</div>
 											</div>

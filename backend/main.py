@@ -11,7 +11,7 @@ Architecture:
 - Configurable settings from frontend
 """
 
-from fastapi import FastAPI, HTTPException, UploadFile, File
+from fastapi import FastAPI, HTTPException, UploadFile, File, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -244,19 +244,25 @@ async def get_session_info(session_name: str):
                 aircraft_json = json.load(f)
                 aircraft_data = aircraft_json.get("aircraft", [])
 
+        # Get aircraft message counts from stats
+        aircraft_message_counts = summary_data.get("stats", {}).get(
+            "aircraft_message_counts", {}
+        )
+
         # Transform aircraft data for frontend
         aircraft_list = []
         for aircraft in aircraft_data:
+            aircraft_id = aircraft.get("ac_id", 0)
             aircraft_list.append(
                 {
-                    "id": aircraft.get("ac_id", 0),
+                    "id": aircraft_id,
                     "name": aircraft.get("name", "Unknown"),
                     "color": f"#{hash(aircraft.get('name', 'unknown')) % 0xFFFFFF:06x}",
-                    "total_messages": 0,  # Will be calculated from actual messages
+                    "total_messages": aircraft_message_counts.get(str(aircraft_id), 0),
                 }
             )
 
-        # Get message types from summary
+        # Get message types from summary - now includes counts
         message_types = []
         if "stats" in summary_data and "message_types" in summary_data["stats"]:
             for msg_type, count in summary_data["stats"]["message_types"].items():
@@ -273,9 +279,10 @@ async def get_session_info(session_name: str):
             "filename": summary_data.get("filename", session_name),
             "file_size": summary_data.get("file_size", 0),
             "total_messages": summary_data.get("stats", {}).get("total_messages", 0),
-            "start_time": summary_data.get("start_time", ""),
-            "end_time": summary_data.get("end_time", ""),
+            "start_time": summary_data.get("stats", {}).get("start_time", 0),
+            "end_time": summary_data.get("stats", {}).get("end_time", 0),
             "duration": summary_data.get("stats", {}).get("duration", 0),
+            "datetime_info": summary_data.get("datetime_info", {}),
             "aircraft": aircraft_list,
             "message_types": message_types,
         }
@@ -292,7 +299,7 @@ async def get_session_info(session_name: str):
 async def get_session_messages(
     session_name: str,
     aircraft_id: Optional[int] = None,
-    message_type: Optional[str] = None,
+    message_type: Optional[List[str]] = Query(None),
     limit: Optional[int] = None,
 ):
     """Get messages for a session with optional filtering"""
@@ -318,11 +325,11 @@ async def get_session_messages(
                 if msg.get("aircraft_id") == aircraft_id
             ]
 
-        if message_type:
+        if message_type and len(message_type) > 0:
             filtered_messages = [
                 msg
                 for msg in filtered_messages
-                if msg.get("message_type") == message_type
+                if msg.get("message_type") in message_type
             ]
 
         # Apply limit if specified
@@ -396,41 +403,74 @@ async def upload_files(
     log_file: UploadFile = File(..., description="Paparazzi .log file"),
     data_file: UploadFile = File(..., description="Paparazzi .data file"),
 ):
-    """Upload and parse log and data files"""
-    global current_session
-
+    """Upload log and data files to be processed by file watcher"""
     try:
-        # Save uploaded files temporarily
+        # Validate file extensions
+        if not log_file.filename.endswith(".log"):
+            raise HTTPException(
+                status_code=400, detail="Log file must have .log extension"
+            )
+        if not data_file.filename.endswith(".data"):
+            raise HTTPException(
+                status_code=400, detail="Data file must have .data extension"
+            )
+
+        # Create input directory if it doesn't exist
+        input_dir = Path("input")
+        input_dir.mkdir(exist_ok=True)
+
+        # Save uploaded files to input directory
         log_content = await log_file.read()
         data_content = await data_file.read()
 
-        # Parse the files
-        log_parser = LogParser()
-        data_parser = SimpleDataParser()
+        # Use the base filename (without extension) for both files
+        base_name = log_file.filename.replace(".log", "")
+        log_path = input_dir / f"{base_name}.log"
+        data_path = input_dir / f"{base_name}.data"
 
-        # Parse log file to get message definitions
-        aircraft_config = log_parser.parse_log(log_content.decode("utf-8"))
+        # Write files to disk - file watcher will detect and process them
+        with open(log_path, "wb") as f:
+            f.write(log_content)
 
-        # Parse data file using the schema from log
-        parsed_data = data_parser.parse_data(data_content, aircraft_config)
-
-        # Store in session
-        current_session = {
-            "aircraft_config": aircraft_config,
-            "parsed_data": parsed_data,
-            "log_filename": log_file.filename,
-            "data_filename": data_file.filename,
-        }
+        with open(data_path, "wb") as f:
+            f.write(data_content)
 
         return {
-            "message": "Files uploaded and parsed successfully",
-            "aircraft_count": len(aircraft_config.aircraft),
-            "message_count": len(parsed_data),
-            "session_id": id(current_session),
+            "message": "Files uploaded successfully",
+            "session_name": base_name,
+            "log_file": log_file.filename,
+            "data_file": data_file.filename,
+            "status": "Files saved to input directory, file watcher will process them",
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error parsing files: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error uploading files: {str(e)}")
+
+
+@app.delete("/sessions/{session_name}")
+async def delete_session(session_name: str):
+    """Delete a processed session and its data files"""
+    try:
+        # Check if session exists
+        output_path = Path("output") / session_name
+        if not output_path.exists():
+            raise HTTPException(status_code=404, detail=f"Session '{session_name}' not found")
+
+        # Remove the entire session directory
+        import shutil
+        shutil.rmtree(output_path)
+
+        return {
+            "message": f"Session '{session_name}' deleted successfully",
+            "session_name": session_name
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error deleting session: {str(e)}")
 
 
 @app.get("/aircraft")
