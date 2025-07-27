@@ -244,19 +244,33 @@ async def get_session_info(session_name: str):
                 aircraft_json = json.load(f)
                 aircraft_data = aircraft_json.get("aircraft", [])
 
+        # Load message data to get actual counts per aircraft
+        messages_file = output_path / "messages.json"
+        aircraft_message_counts = {}
+        if messages_file.exists():
+            with open(messages_file, "r", encoding="utf-8") as f:
+                messages_json = json.load(f)
+                messages_list = messages_json.get("messages", [])
+                
+                # Count messages per aircraft
+                for message in messages_list:
+                    aircraft_id = message.get("aircraft_id", 0)
+                    aircraft_message_counts[aircraft_id] = aircraft_message_counts.get(aircraft_id, 0) + 1
+
         # Transform aircraft data for frontend - only include aircraft with actual data
         aircraft_list = []
         actual_aircraft_ids = summary_data.get("stats", {}).get("aircraft_ids", [])
         
         for aircraft in aircraft_data:
             # Only include aircraft that have actual data in this session
-            if aircraft.get("ac_id") in actual_aircraft_ids:
+            aircraft_id = aircraft.get("ac_id", 0)
+            if aircraft_id in actual_aircraft_ids:
                 aircraft_list.append(
                     {
-                        "id": aircraft.get("ac_id", 0),
+                        "id": aircraft_id,
                         "name": aircraft.get("name", "Unknown"),
                         "color": f"#{hash(aircraft.get('name', 'unknown')) % 0xFFFFFF:06x}",
-                        "total_messages": 0,  # Will be calculated from actual messages
+                        "total_messages": aircraft_message_counts.get(aircraft_id, 0),
                     }
                 )
 
@@ -295,7 +309,7 @@ async def get_session_info(session_name: str):
         return {
             "session_id": session_name,
             "filename": summary_data.get("log_file", session_name),
-            "file_size": summary_data.get("file_size", 0),
+            "file_size": summary_data.get("stats", {}).get("file_size", 0),
             "total_messages": summary_data.get("stats", {}).get("total_messages", 0),
             "start_time": log_datetime,  # Use actual log datetime
             "end_time": log_datetime,
@@ -420,7 +434,7 @@ async def upload_files(
     log_file: UploadFile = File(..., description="Paparazzi .log file"),
     data_file: UploadFile = File(..., description="Paparazzi .data file"),
 ):
-    """Upload log and data files to input directory for processing"""
+    """Upload log and data files and process them immediately"""
     try:
         # Ensure input directory exists
         input_dir = Path("input")
@@ -440,15 +454,18 @@ async def upload_files(
         with open(data_path, "wb") as f:
             f.write(data_content)
 
+        # Process files immediately and get session name
+        session_name = file_watcher.process_log_pair_sync(log_path, data_path)
+
         return {
-            "message": "Files uploaded successfully and queued for processing",
+            "message": "Files uploaded and processed successfully",
+            "session_name": session_name,
             "log_file": log_file.filename,
             "data_file": data_file.filename,
-            "note": "Files will be automatically processed by the file watcher",
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error uploading files: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error uploading and processing files: {str(e)}")
 
 
 @app.get("/aircraft")

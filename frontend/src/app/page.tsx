@@ -67,10 +67,19 @@ export default function Home() {
 		},
 	});
 
-	const handleUploadSuccess = (data: unknown) => {
-		// Switch to dashboard tab after successful upload
+	const handleUploadSuccess = (data: unknown, sessionName: string) => {
+		// Load the session data and switch to dashboard tab
 		console.log("Upload successful:", data);
-		setActiveTab("dashboard");
+		console.log("Session name:", sessionName);
+		
+		if (sessionName) {
+			// Set the session ID and switch to dashboard
+			setSelectedSessionId(sessionName);
+			setActiveTab("dashboard");
+		} else {
+			// Fallback: just switch to dashboard tab
+			setActiveTab("dashboard");
+		}
 	};
 
 	const handleSessionLoad = (data: unknown, sessionId: string) => {

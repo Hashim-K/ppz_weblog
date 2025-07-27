@@ -9,7 +9,7 @@ import { Upload, FileText, AlertCircle } from "lucide-react";
 import axios from "axios";
 
 interface FileUploadProps {
-	onUploadSuccess: (data: unknown) => void;
+	onUploadSuccess: (data: unknown, sessionName: string) => void;
 	loading: boolean;
 	setLoading: (loading: boolean) => void;
 }
@@ -29,6 +29,7 @@ export function FileUpload({
 		dataFile: null,
 	});
 	const [uploadProgress, setUploadProgress] = useState(0);
+	const [processingState, setProcessingState] = useState<"uploading" | "processing" | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
 	const onDrop = useCallback(
@@ -74,6 +75,7 @@ export function FileUpload({
 
 		setLoading(true);
 		setUploadProgress(0);
+		setProcessingState("uploading");
 		setError(null);
 
 		try {
@@ -99,7 +101,14 @@ export function FileUpload({
 				}
 			);
 
-			onUploadSuccess(response.data);
+			// Upload completed, now processing
+			setProcessingState("processing");
+			setUploadProgress(100);
+
+			// Wait for response (backend processes synchronously)
+			// Extract session name from response
+			const sessionName = response.data.session_name || "";
+			onUploadSuccess(response.data, sessionName);
 		} catch (err: unknown) {
 			const errorMessage =
 				err instanceof Error ? err.message : "Unknown error occurred";
@@ -110,6 +119,7 @@ export function FileUpload({
 		} finally {
 			setLoading(false);
 			setUploadProgress(0);
+			setProcessingState(null);
 		}
 	};
 
@@ -213,10 +223,21 @@ export function FileUpload({
 			{loading && (
 				<div className="space-y-2">
 					<div className="flex justify-between text-sm">
-						<span>Uploading files...</span>
-						<span>{uploadProgress}%</span>
+						<span>
+							{processingState === "uploading" 
+								? "Uploading files..." 
+								: processingState === "processing" 
+								? "Processing files..." 
+								: "Loading..."}
+						</span>
+						<span>
+							{processingState === "uploading" ? `${uploadProgress}%` : "Processing..."}
+						</span>
 					</div>
-					<Progress value={uploadProgress} />
+					<Progress 
+						value={processingState === "uploading" ? uploadProgress : 100} 
+						className={processingState === "processing" ? "animate-pulse" : ""}
+					/>
 				</div>
 			)}
 
