@@ -139,7 +139,6 @@ class LogFileHandler(FileSystemEventHandler):
                     min([msg.timestamp for msg in messages]) if messages else 0
                 ),
                 "end_time": max([msg.timestamp for msg in messages]) if messages else 0,
-                "file_size": data_file.stat().st_size,  # Size of the .data file
             }
 
             # 1. Create summary.json for quick overview
@@ -225,149 +224,6 @@ class LogFileHandler(FileSystemEventHandler):
             import traceback
 
             traceback.print_exc()
-
-    def process_log_pair_sync(self, log_file: Path, data_file: Path) -> str:
-        """Process a complete log/data file pair synchronously and return session name."""
-        print(f"Processing log pair synchronously: {log_file.name} + {data_file.name}")
-
-        try:
-            # Extract datetime from filename
-            datetime_info = extract_datetime_from_filename(log_file.name)
-
-            # Get parser version information
-            parser_version = self.parser_version_manager.get_parser_version_info()
-
-            # Parse the files
-            with open(log_file, "r", encoding="utf-8") as f:
-                log_content = f.read()
-
-            aircraft_list = self.log_parser.parse_log(log_content)
-
-            # Create data parser and parse data
-            data_parser = SimpleDataParser()
-            with open(data_file, "rb") as f:
-                data_content = f.read()
-            messages = data_parser.parse_data(data_content, aircraft_list)
-
-            # Create output directory for this log session
-            session_name = log_file.stem
-            session_dir = self.output_dir / session_name
-            session_dir.mkdir(exist_ok=True)
-
-            # Copy processed logs to processed_logs directory
-            processed_session_dir = self.processed_logs_dir / session_name
-            processed_session_dir.mkdir(exist_ok=True)
-
-            # Copy original files to processed_logs (only if they're not already there)
-            try:
-                source_log = log_file
-                source_data = data_file
-                dest_log = processed_session_dir / log_file.name
-                dest_data = processed_session_dir / data_file.name
-
-                # Only copy if source and destination are different
-                if source_log.resolve() != dest_log.resolve():
-                    shutil.copy2(source_log, dest_log)
-                if source_data.resolve() != dest_data.resolve():
-                    shutil.copy2(source_data, dest_data)
-
-            except Exception as e:
-                print(f"Warning: Could not copy files to processed_logs: {e}")
-
-            # Calculate session statistics
-            stats = {
-                "total_aircraft": len(aircraft_list.aircraft),
-                "total_messages": len(messages),
-                "aircraft_ids": sorted(list(set(msg.aircraft_id for msg in messages))),
-                "message_types": sorted(
-                    list(set(msg.message_type for msg in messages))
-                ),
-                "duration": (
-                    max([msg.timestamp for msg in messages])
-                    - min([msg.timestamp for msg in messages])
-                    if messages
-                    else 0
-                ),
-                "start_time": (
-                    min([msg.timestamp for msg in messages]) if messages else 0
-                ),
-                "end_time": max([msg.timestamp for msg in messages]) if messages else 0,
-                "file_size": data_file.stat().st_size,  # Size of the .data file
-            }
-
-            # 1. Create summary.json for quick overview
-            summary_data = {
-                "session_name": session_name,
-                "processed_at": datetime.now().isoformat(),
-                "log_file": log_file.name,
-                "data_file": data_file.name,
-                "datetime_info": datetime_info,
-                "parser_version": parser_version,
-                "stats": stats,
-                "files": {
-                    "aircraft": "aircraft.json",
-                    "messages": "messages.json",
-                    "timeline": "timeline.json",
-                    "by_aircraft": "by_aircraft.json",
-                    "by_message_type": "by_message_type.json",
-                },
-            }
-
-            with open(session_dir / "summary.json", "w", encoding="utf-8") as f:
-                json.dump(summary_data, f, indent=2)
-
-            # 2. Create aircraft.json - aircraft configurations
-            aircraft_data = {
-                "aircraft": [aircraft.to_dict() for aircraft in aircraft_list.aircraft],
-                "count": len(aircraft_list.aircraft),
-            }
-
-            with open(session_dir / "aircraft.json", "w", encoding="utf-8") as f:
-                json.dump(aircraft_data, f, indent=2)
-
-            # 3. Create messages.json - all messages in chronological order
-            messages_data = {
-                "messages": [
-                    msg.to_dict() for msg in sorted(messages, key=lambda x: x.timestamp)
-                ],
-                "count": len(messages),
-                "time_range": {
-                    "start": stats["start_time"],
-                    "end": stats["end_time"],
-                    "duration": stats["duration"],
-                },
-            }
-
-            with open(session_dir / "messages.json", "w", encoding="utf-8") as f:
-                json.dump(messages_data, f, indent=2)
-
-            # 4. Create timeline.json - messages grouped by time intervals (for plotting)
-            timeline_data = self._create_timeline_data(messages)
-            with open(session_dir / "timeline.json", "w", encoding="utf-8") as f:
-                json.dump(timeline_data, f, indent=2)
-
-            # 5. Create by_aircraft.json - messages grouped by aircraft
-            by_aircraft_data = self._group_messages_by_aircraft(messages)
-            with open(session_dir / "by_aircraft.json", "w", encoding="utf-8") as f:
-                json.dump(by_aircraft_data, f, indent=2)
-
-            # 6. Create by_message_type.json - messages grouped by type
-            by_message_type_data = self._group_messages_by_type(messages)
-            with open(session_dir / "by_message_type.json", "w", encoding="utf-8") as f:
-                json.dump(by_message_type_data, f, indent=2)
-
-            print(f"Successfully processed {session_name}")
-            print(f"  - Aircraft: {len(aircraft_list.aircraft)}")
-            print(f"  - Messages: {len(messages)}")
-            print(f"  - Output directory: {session_dir}")
-            
-            return session_name
-
-        except Exception as e:
-            print(f"Error processing log pair {log_file.name}: {e}")
-            import traceback
-            traceback.print_exc()
-            raise e
 
     def _create_timeline_data(self, messages: List) -> Dict[str, Any]:
         """Create timeline data for plotting - messages grouped by time intervals."""
@@ -612,10 +468,6 @@ class FileWatcher:
         sessions.sort(key=lambda x: x.get("processed_at", ""), reverse=True)
         return sessions
 
-    def process_log_pair_sync(self, log_file: Path, data_file: Path) -> str:
-        """Process a complete log/data file pair synchronously and return session name."""
-        return self.event_handler.process_log_pair_sync(log_file, data_file)
-
     def check_and_reprocess_if_needed(self):
         """Check if parser has changed and reprocess sessions if needed."""
         if not self.event_handler.parser_version_manager.has_parser_changed():
@@ -675,36 +527,6 @@ class FileWatcher:
         print("Saving new parser version...")
         self.event_handler.parser_version_manager.save_current_version()
         print("Reprocessing complete!")
-
-    def delete_session(self, session_name: str) -> bool:
-        """Delete a processed session and all its files."""
-        import shutil
-        
-        output_path = Path(self.output_dir)
-        session_dir = output_path / session_name
-        processed_logs_dir = output_path / "processed_logs" / session_name
-        
-        deleted_something = False
-        
-        # Delete main session directory
-        if session_dir.exists() and session_dir.is_dir():
-            try:
-                shutil.rmtree(session_dir)
-                print(f"Deleted session directory: {session_dir}")
-                deleted_something = True
-            except Exception as e:
-                print(f"Error deleting session directory {session_dir}: {e}")
-        
-        # Delete processed logs directory
-        if processed_logs_dir.exists() and processed_logs_dir.is_dir():
-            try:
-                shutil.rmtree(processed_logs_dir)
-                print(f"Deleted processed logs directory: {processed_logs_dir}")
-                deleted_something = True
-            except Exception as e:
-                print(f"Error deleting processed logs directory {processed_logs_dir}: {e}")
-        
-        return deleted_something
 
 
 if __name__ == "__main__":

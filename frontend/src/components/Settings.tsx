@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +13,8 @@ import {
 	Sun,
 	Monitor,
 } from "lucide-react";
+import { useTheme } from "@/components/ThemeProvider";
 import axios from "axios";
-import { useTheme } from "@/components/theme-provider";
 
 interface ParserSettings {
 	max_message_size: number;
@@ -48,80 +48,88 @@ interface SettingsData {
 	parser: ParserSettings;
 	visualization: VisualizationSettings;
 	export: ExportSettings;
-	ui: UISettings;
 }
 
 interface SettingsProps {
 	onSettingsChange: (settings: SettingsData) => void;
 }
 
+const defaultSettings: SettingsData = {
+	parser: {
+		max_message_size: 1024,
+		skip_unknown_messages: true,
+		parse_debug_messages: false,
+		time_offset: 0.0,
+		aircraft_filter: null,
+		message_type_filter: null,
+	},
+	visualization: {
+		max_points_per_plot: 10000,
+		time_window_seconds: 60.0,
+		auto_refresh: false,
+		refresh_interval: 1.0,
+	},
+	export: {
+		include_raw_data: false,
+		decimal_places: 6,
+		time_format: "timestamp",
+		include_metadata: true,
+	},
+};
+
+const defaultUISettings: UISettings = {
+	theme: "system",
+	aircraftSortBy: "id",
+};
+
 export function Settings({ onSettingsChange }: SettingsProps) {
-	const [settings, setSettings] = useState<SettingsData | null>(null);
-	const [loading, setLoading] = useState(false);
+	const { theme, setTheme } = useTheme();
+	const [settings, setSettings] = useState<SettingsData>(defaultSettings);
+	const [uiSettings, setUISettings] = useState<UISettings>(defaultUISettings);
+	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [message, setMessage] = useState<string | null>(null);
-	const { theme, setTheme } = useTheme();
 
-	const loadSettings = useCallback(async () => {
-		setLoading(true);
-		try {
-			const response = await axios.get("http://localhost:8000/settings");
-			const loadedSettings = response.data;
-
-			// Ensure UI settings exist with defaults
-			if (!loadedSettings.ui) {
-				loadedSettings.ui = {
-					theme: "system" as const,
-					aircraftSortBy: "id" as const,
-				};
+	// Load everything on mount - NO DEPENDENCIES TO AVOID LOOPS
+	useEffect(() => {
+		const loadEverything = async () => {
+			try {
+				// Load backend settings
+				const response = await axios.get("http://localhost:8000/settings");
+				const loadedSettings = response.data;
+				
+				setSettings(loadedSettings || defaultSettings);
+				
+			} catch (error) {
+				console.error("Failed to load settings:", error);
+				setMessage("Failed to load settings");
+				setSettings(defaultSettings);
 			}
 
-			setSettings(loadedSettings);
-			onSettingsChange(loadedSettings);
-		} catch (error) {
-			console.error("Failed to load settings:", error);
-			setMessage("Failed to load settings");
-			// Set default settings on load failure
-			const defaultSettings: SettingsData = {
-				parser: {
-					max_message_size: 1024,
-					skip_unknown_messages: true,
-					parse_debug_messages: false,
-					time_offset: 0.0,
-					aircraft_filter: null,
-					message_type_filter: null,
-				},
-				visualization: {
-					max_points_per_plot: 10000,
-					time_window_seconds: 60.0,
-					auto_refresh: false,
-					refresh_interval: 1.0,
-				},
-				export: {
-					include_raw_data: false,
-					decimal_places: 6,
-					time_format: "timestamp",
-					include_metadata: true,
-				},
-				ui: {
-					theme: "system",
-					aircraftSortBy: "id",
-				},
-			};
-			setSettings(defaultSettings);
-			onSettingsChange(defaultSettings);
-		} finally {
-			setLoading(false);
-		}
-	}, [onSettingsChange]);
+			// Load UI settings from localStorage
+			const savedUISettings = localStorage.getItem('ui-settings');
+			if (savedUISettings) {
+				const parsedUISettings = JSON.parse(savedUISettings);
+				setUISettings(parsedUISettings);
+				setTheme(parsedUISettings.theme);
+			} else {
+				setUISettings(defaultUISettings);
+			}
 
+			setLoading(false);
+		};
+
+		loadEverything();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []); // NO DEPENDENCIES - ONLY RUN ONCE
+
+	// Save UI settings to localStorage when they change (after initial load)
 	useEffect(() => {
-		loadSettings();
-	}, [loadSettings]);
+		if (loading) return; // Don't save during initial load
+		localStorage.setItem('ui-settings', JSON.stringify(uiSettings));
+	}, [uiSettings, loading]);
 
 	const saveSettings = async () => {
-		if (!settings) return;
-
 		setSaving(true);
 		try {
 			await axios.post("http://localhost:8000/settings", settings);
@@ -137,92 +145,46 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 	};
 
 	const resetToDefaults = () => {
-		const defaultSettings: SettingsData = {
-			parser: {
-				max_message_size: 1024,
-				skip_unknown_messages: true,
-				parse_debug_messages: false,
-				time_offset: 0.0,
-				aircraft_filter: null,
-				message_type_filter: null,
-			},
-			visualization: {
-				max_points_per_plot: 10000,
-				time_window_seconds: 60.0,
-				auto_refresh: false,
-				refresh_interval: 1.0,
-			},
-			export: {
-				include_raw_data: false,
-				decimal_places: 6,
-				time_format: "timestamp",
-				include_metadata: true,
-			},
-			ui: {
-				theme: "system",
-				aircraftSortBy: "id",
-			},
-		};
 		setSettings(defaultSettings);
-		onSettingsChange(defaultSettings);
+		setUISettings(defaultUISettings);
+		setTheme("system");
 	};
 
 	const updateParserSetting = (key: keyof ParserSettings, value: unknown) => {
-		if (!settings) return;
-		setSettings({
-			...settings,
-			parser: {
-				...settings.parser,
-				[key]: value,
-			},
-		});
+		setSettings(prev => ({
+			...prev,
+			parser: { ...prev.parser, [key]: value },
+		}));
 	};
 
-	const updateVisualizationSetting = (
-		key: keyof VisualizationSettings,
-		value: unknown
-	) => {
-		if (!settings) return;
-		setSettings({
-			...settings,
-			visualization: {
-				...settings.visualization,
-				[key]: value,
-			},
-		});
+	const updateVisualizationSetting = (key: keyof VisualizationSettings, value: unknown) => {
+		setSettings(prev => ({
+			...prev,
+			visualization: { ...prev.visualization, [key]: value },
+		}));
 	};
 
 	const updateExportSetting = (key: keyof ExportSettings, value: unknown) => {
-		if (!settings) return;
-		setSettings({
-			...settings,
-			export: {
-				...settings.export,
-				[key]: value,
-			},
-		});
+		setSettings(prev => ({
+			...prev,
+			export: { ...prev.export, [key]: value },
+		}));
 	};
 
 	const updateUISetting = (key: keyof UISettings, value: unknown) => {
-		if (!settings) return;
-		
-		// Handle theme changes through the theme provider
+		// Update theme immediately for visual feedback
 		if (key === "theme") {
 			setTheme(value as "system" | "light" | "dark");
 		}
 		
-		const updatedSettings = {
-			...settings,
-			ui: {
-				...settings.ui,
-				[key]: value,
-			},
-		};
-		setSettings(updatedSettings);
-		onSettingsChange(updatedSettings);
+		// Update UI settings state (will automatically save to localStorage)
+		setUISettings(prev => ({
+			...prev,
+			[key]: value,
+		}));
 	};
 
-	if (loading || !settings) {
+	if (loading) {
 		return (
 			<div className="flex items-center justify-center py-8">
 				<div className="text-center">
@@ -291,10 +253,7 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								type="number"
 								value={settings.parser.max_message_size}
 								onChange={(e) =>
-									updateParserSetting(
-										"max_message_size",
-										parseInt(e.target.value)
-									)
+									updateParserSetting("max_message_size", parseInt(e.target.value))
 								}
 							/>
 						</div>
@@ -361,10 +320,7 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								type="number"
 								value={settings.visualization.max_points_per_plot}
 								onChange={(e) =>
-									updateVisualizationSetting(
-										"max_points_per_plot",
-										parseInt(e.target.value)
-									)
+									updateVisualizationSetting("max_points_per_plot", parseInt(e.target.value))
 								}
 							/>
 						</div>
@@ -378,10 +334,7 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								step="0.1"
 								value={settings.visualization.time_window_seconds}
 								onChange={(e) =>
-									updateVisualizationSetting(
-										"time_window_seconds",
-										parseFloat(e.target.value)
-									)
+									updateVisualizationSetting("time_window_seconds", parseFloat(e.target.value))
 								}
 							/>
 						</div>
@@ -395,10 +348,7 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								step="0.1"
 								value={settings.visualization.refresh_interval}
 								onChange={(e) =>
-									updateVisualizationSetting(
-										"refresh_interval",
-										parseFloat(e.target.value)
-									)
+									updateVisualizationSetting("refresh_interval", parseFloat(e.target.value))
 								}
 							/>
 						</div>
@@ -436,10 +386,7 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								max="10"
 								value={settings.export.decimal_places}
 								onChange={(e) =>
-									updateExportSetting(
-										"decimal_places",
-										parseInt(e.target.value)
-									)
+									updateExportSetting("decimal_places", parseInt(e.target.value))
 								}
 							/>
 						</div>
@@ -514,9 +461,7 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								</div>
 								<div className="flex items-center gap-2">
 									<Button
-										variant={
-											theme === "light" ? "default" : "outline"
-										}
+										variant={theme === "light" ? "default" : "outline"}
 										size="sm"
 										onClick={() => updateUISetting("theme", "light")}
 										className="flex items-center gap-1"
@@ -525,9 +470,7 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 										Light
 									</Button>
 									<Button
-										variant={
-											theme === "dark" ? "default" : "outline"
-										}
+										variant={theme === "dark" ? "default" : "outline"}
 										size="sm"
 										onClick={() => updateUISetting("theme", "dark")}
 										className="flex items-center gap-1"
@@ -536,9 +479,7 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 										Dark
 									</Button>
 									<Button
-										variant={
-											theme === "system" ? "default" : "outline"
-										}
+										variant={theme === "system" ? "default" : "outline"}
 										size="sm"
 										onClick={() => updateUISetting("theme", "system")}
 										className="flex items-center gap-1"
@@ -558,12 +499,9 @@ export function Settings({ onSettingsChange }: SettingsProps) {
 								</div>
 								<select
 									className="w-32 p-2 border rounded-md"
-									value={settings.ui.aircraftSortBy}
+									value={uiSettings.aircraftSortBy}
 									onChange={(e) =>
-										updateUISetting(
-											"aircraftSortBy",
-											e.target.value as "id" | "name"
-										)
+										updateUISetting("aircraftSortBy", e.target.value)
 									}
 								>
 									<option value="id">By ID</option>

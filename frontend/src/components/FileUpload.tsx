@@ -29,7 +29,6 @@ export function FileUpload({
 		dataFile: null,
 	});
 	const [uploadProgress, setUploadProgress] = useState(0);
-	const [processingState, setProcessingState] = useState<"uploading" | "processing" | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
 	const onDrop = useCallback(
@@ -75,7 +74,6 @@ export function FileUpload({
 
 		setLoading(true);
 		setUploadProgress(0);
-		setProcessingState("uploading");
 		setError(null);
 
 		try {
@@ -101,11 +99,6 @@ export function FileUpload({
 				}
 			);
 
-			// Upload completed, now processing
-			setProcessingState("processing");
-			setUploadProgress(100);
-
-			// Wait for response (backend processes synchronously)
 			// Extract session name from response
 			const sessionName = response.data.session_name || "";
 			onUploadSuccess(response.data, sessionName);
@@ -119,7 +112,6 @@ export function FileUpload({
 		} finally {
 			setLoading(false);
 			setUploadProgress(0);
-			setProcessingState(null);
 		}
 	};
 
@@ -223,21 +215,10 @@ export function FileUpload({
 			{loading && (
 				<div className="space-y-2">
 					<div className="flex justify-between text-sm">
-						<span>
-							{processingState === "uploading" 
-								? "Uploading files..." 
-								: processingState === "processing" 
-								? "Processing files..." 
-								: "Loading..."}
-						</span>
-						<span>
-							{processingState === "uploading" ? `${uploadProgress}%` : "Processing..."}
-						</span>
+						<span>Uploading files...</span>
+						<span>{uploadProgress}%</span>
 					</div>
-					<Progress 
-						value={processingState === "uploading" ? uploadProgress : 100} 
-						className={processingState === "processing" ? "animate-pulse" : ""}
-					/>
+					<Progress value={uploadProgress} />
 				</div>
 			)}
 

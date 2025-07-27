@@ -102,7 +102,34 @@ export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }
 		}
 	};
 
-	const loadSessionInfo = async (sessionId: string) => {
+	const deleteCurrentSession = async () => {
+		if (!selectedSession) return;
+		
+		setDeletingSession(true);
+		try {
+			await axios.delete(`http://localhost:8000/sessions/${selectedSession}`);
+			
+			// Remove from sessions list
+			setSessions(prev => prev.filter(session => session !== selectedSession));
+			
+			// Clear current session data
+			setSelectedSession("");
+			setSessionInfo(null);
+			setMessages([]);
+			
+			// Select first available session if any
+			const remainingSessions = sessions.filter(session => session !== selectedSession);
+			if (remainingSessions.length > 0) {
+				setSelectedSession(remainingSessions[0]);
+			}
+			
+			console.log(`Session ${selectedSession} deleted successfully`);
+		} catch (error) {
+			console.error(`Failed to delete session ${selectedSession}:`, error);
+		} finally {
+			setDeletingSession(false);
+		}
+	};	const loadSessionInfo = async (sessionId: string) => {
 		try {
 			const response = await axios.get(
 				`http://localhost:8000/sessions/${sessionId}/info`
@@ -156,38 +183,6 @@ export function Dashboard({ settings, preloadedSessionData, preloadedSessionId }
 			setMessagesLoading(false);
 		}
 	}, [selectedSession, selectedAircraft, messageTypeFilter]);
-
-	const deleteCurrentSession = async () => {
-		if (!selectedSession) return;
-		
-		setDeletingSession(true);
-		try {
-			await axios.delete(`http://localhost:8000/sessions/${selectedSession}`);
-			
-			// Remove from sessions list
-			setSessions(prev => prev.filter(session => session !== selectedSession));
-			
-			// Clear current session data
-			setSelectedSession("");
-			setSessionInfo(null);
-			setMessages([]);
-			
-			// Select first available session if any
-			const remainingSessions = sessions.filter(session => session !== selectedSession);
-			if (remainingSessions.length > 0) {
-				setSelectedSession(remainingSessions[0]);
-			}
-			
-			console.log(`Session ${selectedSession} deleted successfully`);
-		} catch (error) {
-			console.error(`Failed to delete session ${selectedSession}:`, error);
-		} finally {
-			setDeletingSession(false);
-		}
-	};
-
-	// Remove the loadMoreMessages function since we're doing automatic lazy loading
-	// const loadMoreMessages = () => { ... };
 
 	useEffect(() => {
 		// If we have preloaded session data, use it directly

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,17 +47,13 @@ interface SessionInfo {
 	}>;
 }
 
-interface SessionsProps {
-	onSessionLoad: (sessionData: unknown, sessionId: string) => void;
-}
-
-export function Sessions({ onSessionLoad }: SessionsProps) {
+export function Sessions() {
+	const router = useRouter();
 	const [sessionNames, setSessionNames] = useState<string[]>([]);
 	const [sessionInfos, setSessionInfos] = useState<Record<string, SessionInfo>>(
 		{}
 	);
 	const [loading, setLoading] = useState(true);
-	const [loadingSession, setLoadingSession] = useState<string | null>(null);
 	const [deletingSession, setDeletingSession] = useState<string | null>(null);
 
 	const loadSessions = async () => {
@@ -91,41 +88,25 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 		}
 	};
 
-	const loadSession = async (sessionName: string) => {
-		setLoadingSession(sessionName);
-		try {
-			await axios.post(`http://localhost:8000/sessions/${sessionName}/load`);
-			const sessionData = await axios.get(
-				`http://localhost:8000/sessions/${sessionName}`
-			);
-
-			// Call the callback to notify parent component
-			onSessionLoad(sessionData.data, sessionName);
-
-			console.log(`Session ${sessionName} loaded successfully`);
-		} catch (error) {
-			console.error(`Failed to load session ${sessionName}:`, error);
-		} finally {
-			setLoadingSession(null);
-		}
+	const viewSession = (sessionName: string) => {
+		// Navigate to dashboard with session parameter
+		router.push(`/dashboard?session=${encodeURIComponent(sessionName)}`);
 	};
 
 	const deleteSession = async (sessionName: string) => {
 		setDeletingSession(sessionName);
 		try {
 			await axios.delete(`http://localhost:8000/sessions/${sessionName}`);
-			
-			// Remove from local state
+			// Remove session from local state
 			setSessionNames(prev => prev.filter(name => name !== sessionName));
 			setSessionInfos(prev => {
-				const updated = { ...prev };
-				delete updated[sessionName];
-				return updated;
+				const newInfos = { ...prev };
+				delete newInfos[sessionName];
+				return newInfos;
 			});
-			
-			console.log(`Session ${sessionName} deleted successfully`);
 		} catch (error) {
-			console.error(`Failed to delete session ${sessionName}:`, error);
+			console.error("Failed to delete session:", error);
+			alert("Failed to delete session. Please try again.");
 		} finally {
 			setDeletingSession(null);
 		}
@@ -159,7 +140,7 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 			<div className="flex items-center justify-center h-64">
 				<div className="text-center">
 					<div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
-					<p className="text-gray-600 dark:text-gray-400">Loading processed sessions...</p>
+					<p className="text-gray-600">Loading processed sessions...</p>
 				</div>
 			</div>
 		);
@@ -170,7 +151,7 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 			<div className="flex items-center justify-between">
 				<div>
 					<h2 className="text-2xl font-bold">Processed Log Sessions</h2>
-					<p className="text-gray-600 dark:text-gray-400">
+					<p className="text-gray-600">
 						Found {sessionNames.length} processed log session
 						{sessionNames.length !== 1 ? "s" : ""}
 					</p>
@@ -185,15 +166,15 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 					<CardContent className="py-8">
 						<div className="text-center">
 							<Plane className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-							<h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+							<h3 className="text-lg font-medium text-gray-900 mb-2">
 								No processed sessions found
 							</h3>
-							<p className="text-gray-600 dark:text-gray-400 mb-4">
+							<p className="text-gray-600 mb-4">
 								Drop your .log and .data files in the backend/input folder to
 								automatically process them.
 							</p>
-							<div className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg text-left">
-								<p className="text-sm text-gray-700 dark:text-gray-300 font-mono">
+							<div className="bg-gray-50 p-4 rounded-lg text-left">
+								<p className="text-sm text-gray-700 font-mono">
 									cp your_file.log your_file.data /path/to/backend/input/
 								</p>
 							</div>
@@ -214,27 +195,28 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 										<CardTitle className="text-lg truncate">
 											{sessionInfo?.filename || sessionName}
 										</CardTitle>
-										<div className="flex items-center gap-2">
+										<div className="flex gap-2 ml-2">
+											<Button
+												onClick={() => viewSession(sessionName)}
+												size="sm"
+											>
+												<PlayCircle className="h-4 w-4" />
+											</Button>
 											<AlertDialog>
 												<AlertDialogTrigger asChild>
 													<Button
-														variant="outline"
-														size="sm"
 														disabled={deletingSession === sessionName}
-														className="text-red-600 hover:text-red-700 hover:bg-red-50"
+														size="sm"
+														variant="destructive"
 													>
-														{deletingSession === sessionName ? (
-															<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600"></div>
-														) : (
-															<Trash2 className="h-4 w-4" />
-														)}
+														<Trash2 className="h-4 w-4" />
 													</Button>
 												</AlertDialogTrigger>
 												<AlertDialogContent>
 													<AlertDialogHeader>
 														<AlertDialogTitle>Delete Session</AlertDialogTitle>
 														<AlertDialogDescription>
-															Are you sure you want to delete the session &ldquo;{sessionInfo?.filename || sessionName}&rdquo;? 
+															Are you sure you want to delete the session &ldquo;{sessionName}&rdquo;? 
 															This action cannot be undone and will permanently remove all session data.
 														</AlertDialogDescription>
 													</AlertDialogHeader>
@@ -249,20 +231,9 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 													</AlertDialogFooter>
 												</AlertDialogContent>
 											</AlertDialog>
-											<Button
-												onClick={() => loadSession(sessionName)}
-												disabled={loadingSession === sessionName}
-												size="sm"
-											>
-												{loadingSession === sessionName ? (
-													<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-												) : (
-													<PlayCircle className="h-4 w-4" />
-												)}
-											</Button>
 										</div>
 									</div>
-									<p className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
+									<p className="text-sm text-gray-600 flex items-center">
 										<Calendar className="h-3 w-3 mr-1" />
 										{sessionInfo
 											? formatDate(sessionInfo.start_time)
@@ -275,7 +246,7 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 										<>
 											{/* File info */}
 											<div className="space-y-1">
-												<p className="text-xs text-gray-500 dark:text-gray-400">File:</p>
+												<p className="text-xs text-gray-500">File:</p>
 												<p className="text-sm font-mono truncate">
 													{sessionInfo.filename}
 												</p>
@@ -283,30 +254,30 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 
 											{/* Stats */}
 											<div className="grid grid-cols-2 gap-3">
-												<div className="text-center p-2 bg-blue-50 dark:bg-blue-900/20 rounded">
+												<div className="text-center p-2 bg-blue-50 rounded">
 													<div className="flex items-center justify-center mb-1">
-														<Plane className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+														<Plane className="h-4 w-4 text-blue-600" />
 													</div>
-													<p className="text-lg font-bold text-blue-600 dark:text-blue-400">
+													<p className="text-lg font-bold text-blue-600">
 														{sessionInfo.aircraft.length}
 													</p>
-													<p className="text-xs text-gray-600 dark:text-gray-400">Aircraft</p>
+													<p className="text-xs text-gray-600">Aircraft</p>
 												</div>
 
-												<div className="text-center p-2 bg-green-50 dark:bg-green-900/20 rounded">
+												<div className="text-center p-2 bg-green-50 rounded">
 													<div className="flex items-center justify-center mb-1">
-														<MessageSquare className="h-4 w-4 text-green-600 dark:text-green-400" />
+														<MessageSquare className="h-4 w-4 text-green-600" />
 													</div>
-													<p className="text-lg font-bold text-green-600 dark:text-green-400">
+													<p className="text-lg font-bold text-green-600">
 														{sessionInfo.total_messages.toLocaleString()}
 													</p>
-													<p className="text-xs text-gray-600 dark:text-gray-400">Messages</p>
+													<p className="text-xs text-gray-600">Messages</p>
 												</div>
 											</div>
 
 											{/* Duration */}
-											<div className="flex items-center justify-center p-2 bg-gray-50 dark:bg-gray-700 rounded">
-												<Clock className="h-4 w-4 text-gray-600 dark:text-gray-400 mr-2" />
+											<div className="flex items-center justify-center p-2 bg-gray-50 rounded">
+												<Clock className="h-4 w-4 text-gray-600 mr-2" />
 												<span className="text-sm font-medium">
 													{formatDuration(sessionInfo.duration)}
 												</span>
@@ -314,7 +285,7 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 
 											{/* Aircraft IDs */}
 											<div>
-												<p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+												<p className="text-xs text-gray-500 mb-1">
 													Aircraft IDs:
 												</p>
 												<div className="flex flex-wrap gap-1">
@@ -338,7 +309,7 @@ export function Sessions({ onSessionLoad }: SessionsProps) {
 									) : (
 										<div className="flex items-center justify-center py-4">
 											<div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-											<span className="ml-2 text-sm text-gray-600 dark:text-gray-400">
+											<span className="ml-2 text-sm text-gray-600">
 												Loading session info...
 											</span>
 										</div>
